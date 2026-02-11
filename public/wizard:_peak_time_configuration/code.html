@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Wizard: Peak Time Configuration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13a4ec",
+                        "primary-dark": "#0e8bc7",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101c22",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1c2a33",
+                        "border-light": "#e2e8f0",
+                        "border-dark": "#2d3a45",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>.toggle-checkbox:checked {
+            right: 0;
+            border-color: #13a4ec;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #13a4ec;
+        }#peak-time-settings {
+            transition: all 0.3s ease-in-out;
+            max-height: 1000px;opacity: 1;
+            overflow: hidden;
+        }
+        #peak-time-settings.hidden-settings {
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-100 min-h-screen flex flex-col">
+<header class="w-full bg-white dark:bg-card-dark border-b border-border-light dark:border-border-dark px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+<div class="flex items-center gap-2">
+<div class="bg-primary/10 p-1.5 rounded-lg">
+<span class="material-icons-round text-primary">schedule</span>
+</div>
+<span class="font-bold text-lg tracking-tight text-slate-900 dark:text-white">SmartScheduler</span>
+</div>
+<nav class="hidden md:flex items-center space-x-2">
+<div class="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+<div class="flex items-center justify-center w-8 h-8 rounded-full border-2 border-slate-300 dark:border-slate-600 font-semibold text-xs bg-transparent">
+<span class="material-icons-round text-base">store</span>
+</div>
+<span class="text-sm font-medium hidden lg:inline">Store Info</span>
+</div>
+<div class="w-8 h-0.5 bg-slate-200 dark:bg-slate-700"></div>
+<div class="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+<div class="flex items-center justify-center w-8 h-8 rounded-full border-2 border-slate-300 dark:border-slate-600 font-semibold text-xs bg-transparent">
+<span class="material-icons-round text-base">settings</span>
+</div>
+<span class="text-sm font-medium hidden lg:inline">Shift Setup</span>
+</div>
+<div class="w-8 h-0.5 bg-slate-200 dark:bg-slate-700"></div>
+<div class="flex items-center gap-2 text-primary">
+<div class="flex items-center justify-center w-8 h-8 rounded-full border-2 border-primary bg-primary text-white font-semibold text-xs shadow-md shadow-primary/20">
+<span class="material-icons-round text-base">trending_up</span>
+</div>
+<span class="text-sm font-bold hidden lg:inline">Peak Times</span>
+</div>
+<div class="w-8 h-0.5 bg-slate-200 dark:bg-slate-700"></div>
+<div class="flex items-center gap-2 text-slate-400 dark:text-slate-500">
+<div class="flex items-center justify-center w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 font-semibold text-xs text-slate-400 dark:text-slate-500">
+<span class="material-icons-round text-base">visibility</span>
+</div>
+<span class="text-sm font-medium hidden lg:inline">Review</span>
+</div>
+</nav>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+<span class="material-icons-round">help_outline</span>
+</button>
+</div>
+</header>
+<main class="flex-grow flex items-center justify-center p-4 md:p-8">
+<div class="w-full max-w-3xl bg-card-light dark:bg-card-dark rounded-xl shadow-lg dark:shadow-slate-900/20 border border-border-light dark:border-border-dark overflow-hidden flex flex-col">
+<div class="px-8 pt-8 pb-0">
+<div class="flex flex-col gap-1">
+<h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Peak Time Configuration</h1>
+<p class="text-slate-500 dark:text-slate-400">Define busy hours for optimized staffing allocation.</p>
+</div>
+</div>
+<div class="p-8 space-y-8">
+<div class="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg p-4 flex items-start gap-3">
+<div class="p-1.5 bg-primary/20 rounded-full text-primary shrink-0">
+<span class="material-icons-round text-lg">info</span>
+</div>
+<div>
+<h3 class="font-semibold text-sm text-slate-900 dark:text-white mb-1">Why set peak times?</h3>
+<p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                        Identifying rush hours helps our algorithm automatically suggest extra staff shifts when your store is busiest, ensuring smooth operations.
+                    </p>
+</div>
+</div>
+<div class="flex items-center justify-between p-5 bg-white dark:bg-slate-800/50 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400">
+<span class="material-icons-round">trending_up</span>
+</div>
+<div>
+<h3 class="font-semibold text-slate-900 dark:text-white">Has Peak Time?</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400">Enable if your store has specific high-traffic periods.</p>
+</div>
+</div>
+<div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300 checked:right-0 checked:border-primary transition-all duration-200" id="toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer checked:bg-primary transition-colors duration-200" for="toggle"></label>
+</div>
+</div>
+<div class="space-y-6" id="peak-time-settings">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="relative">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Start Time</label>
+<div class="relative">
+<select class="block w-full pl-10 pr-10 py-2.5 text-base border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-primary focus:border-primary sm:text-sm rounded-lg shadow-sm">
+<option>11:00 AM</option>
+<option selected="">12:00 PM</option>
+<option>01:00 PM</option>
+<option>05:00 PM</option>
+<option>06:00 PM</option>
+</select>
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+<span class="material-icons-round text-lg">schedule</span>
+</div>
+</div>
+</div>
+<div class="relative">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">End Time</label>
+<div class="relative">
+<select class="block w-full pl-10 pr-10 py-2.5 text-base border-border-light dark:border-border-dark bg-white dark:bg-background-dark focus:ring-primary focus:border-primary sm:text-sm rounded-lg shadow-sm">
+<option>12:00 PM</option>
+<option>01:00 PM</option>
+<option selected="">02:00 PM</option>
+<option>06:00 PM</option>
+<option>07:00 PM</option>
+<option>08:00 PM</option>
+</select>
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+<span class="material-icons-round text-lg">schedule</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex items-center">
+<input checked="" class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" id="apply-all" type="checkbox"/>
+<label class="ml-2 block text-sm text-slate-600 dark:text-slate-400" for="apply-all">
+                        Apply these peak hours to all operating days
+                    </label>
+</div>
+<div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-6 border border-border-light dark:border-border-dark">
+<div class="flex justify-between items-end mb-4">
+<div>
+<h4 class="text-sm font-semibold text-slate-900 dark:text-white">Daily Timeline</h4>
+<p class="text-xs text-slate-500 dark:text-slate-400">Visualizing 12:00 PM - 02:00 PM Peak</p>
+</div>
+<div class="flex gap-4 text-xs">
+<div class="flex items-center gap-1.5">
+<div class="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+<span class="text-slate-500">Normal</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="w-3 h-3 rounded-full bg-primary"></div>
+<span class="text-slate-700 dark:text-slate-200 font-medium">Peak</span>
+</div>
+</div>
+</div>
+<div class="relative h-12 w-full bg-white dark:bg-slate-800 rounded-lg border border-border-light dark:border-border-dark overflow-hidden flex items-center px-2">
+<div class="absolute inset-0 flex justify-between px-2 items-center pointer-events-none z-10 text-[10px] text-slate-400 font-medium select-none w-full">
+<span>8a</span>
+<span>10a</span>
+<span>12p</span>
+<span>2p</span>
+<span>4p</span>
+<span>6p</span>
+<span>8p</span>
+<span>10p</span>
+</div>
+<div class="absolute left-[2%] right-[2%] h-2 bg-slate-100 dark:bg-slate-700 rounded-full"></div>
+<div class="absolute left-[28.5%] w-[14.2%] h-4 bg-primary/20 border border-primary/50 rounded-md z-0 flex items-center justify-center backdrop-blur-sm"></div>
+<div class="absolute left-[28.5%] w-[14.2%] h-1 bg-primary rounded-full z-0 top-[45%]"></div>
+<div class="absolute left-[28.5%] -top-1">
+<div class="w-0.5 h-14 bg-primary/30 mx-auto"></div>
+</div>
+<div class="absolute left-[42.7%] -top-1">
+<div class="w-0.5 h-14 bg-primary/30 mx-auto"></div>
+</div>
+</div>
+<p class="text-[11px] text-slate-400 mt-2 text-center">Drag handles on timeline to fine tune (disabled in wizard mode)</p>
+</div>
+</div>
+</div>
+<div class="px-8 py-4 bg-slate-50 dark:bg-slate-800/30 border-t border-border-light dark:border-border-dark flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+<span class="text-xs text-slate-500 font-medium">Draft saved</span>
+</div>
+<div class="flex gap-4">
+<button class="px-6 py-2.5 rounded-lg border border-border-light dark:border-border-dark text-slate-600 dark:text-slate-300 font-medium hover:bg-white dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700">
+                    Back
+                </button>
+<button class="px-8 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-medium shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary dark:focus:ring-offset-slate-900">
+                    Continue
+                </button>
+</div>
+</div>
+</div>
+</main>
+<script>
+    const toggle = document.getElementById('toggle');
+    const settings = document.getElementById('peak-time-settings');
+    toggle.addEventListener('change', function() {
+        if(this.checked) {
+            settings.classList.remove('hidden-settings');
+        } else {
+            settings.classList.add('hidden-settings');
+        }
+    });
+</script>
+
+</body></html>

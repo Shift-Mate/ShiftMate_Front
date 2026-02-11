@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Substitute Request Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13a4ec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101c22",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #334155;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 min-h-screen font-display antialiased flex overflow-hidden">
+<aside class="w-64 bg-white dark:bg-[#152028] border-r border-slate-200 dark:border-slate-800 flex-shrink-0 flex flex-col h-screen sticky top-0 z-50 hidden lg:flex">
+<div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
+<div class="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10 text-primary shrink-0">
+<span class="material-icons">event_note</span>
+</div>
+<div>
+<h1 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">SmartScheduler</h1>
+<p class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Workforce</p>
+</div>
+</div>
+<nav class="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">calendar_month</span>
+<span class="font-medium text-sm">Schedule</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">groups</span>
+<span class="font-medium text-sm">Team</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary font-medium" href="#">
+<span class="material-icons text-xl">swap_horiz</span>
+<span class="font-medium text-sm">Substitute Requests</span>
+<span class="ml-auto bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">3</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary transition-colors group" href="#">
+<span class="material-icons text-xl group-hover:text-primary transition-colors">payments</span>
+<span class="font-medium text-sm">Payroll</span>
+</a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/20">
+<div class="flex items-center gap-3 mb-4">
+<img class="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-slate-700 shadow-sm" data-alt="Manager profile photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIf0D72DWprBilin6Thhtg_2-FfYvGWTBT92rXBQOb2m6maujDpI-sxVJVDhaaAEUtZfMfnoCBW3cYHgRS5allHDk7d6uQjD0tMCS5M3WGd1_t3dFay1DQxXckWdl8_rYmEFWr7LKhxKzPpYrlm85-8ANvpKkqA-wAsafSioBlH8-igiKBZSzpdWZblF6LwKyYbzMpQkyZRtaMcHfUZqG92dWAIBGXkzpQRKh5SsU_ISLscbR5Arcf2z8CZvBCEYXkn41GPHG_Tyg"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-semibold text-slate-900 dark:text-white truncate">Alex Morgan</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 truncate">Store Manager</p>
+</div>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+<span class="material-icons text-lg">settings</span>
+</button>
+</div>
+<button class="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors">
+<span class="material-icons text-base">logout</span>
+                Sign Out
+            </button>
+</div>
+</aside>
+<div class="flex-1 flex flex-col h-screen overflow-hidden">
+<header class="bg-white dark:bg-[#152028] border-b border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between lg:hidden sticky top-0 z-40">
+<div class="flex items-center gap-3">
+<button class="p-2 -ml-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+<span class="material-icons">menu</span>
+</button>
+<div class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary">
+<span class="material-icons text-lg">event_note</span>
+</div>
+<span class="font-bold text-slate-900 dark:text-white">SmartScheduler</span>
+</div>
+<img class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIf0D72DWprBilin6Thhtg_2-FfYvGWTBT92rXBQOb2m6maujDpI-sxVJVDhaaAEUtZfMfnoCBW3cYHgRS5allHDk7d6uQjD0tMCS5M3WGd1_t3dFay1DQxXckWdl8_rYmEFWr7LKhxKzPpYrlm85-8ANvpKkqA-wAsafSioBlH8-igiKBZSzpdWZblF6LwKyYbzMpQkyZRtaMcHfUZqG92dWAIBGXkzpQRKh5SsU_ISLscbR5Arcf2z8CZvBCEYXkn41GPHG_Tyg"/>
+</header>
+<main class="flex-1 overflow-y-auto p-4 lg:p-8">
+<div class="max-w-[1600px] mx-auto flex flex-col xl:flex-row gap-6 h-full">
+<section class="flex-1 flex flex-col gap-6 min-w-0">
+<div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+<div>
+<h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-1">Substitute Requests</h2>
+<p class="text-slate-500 dark:text-slate-400 text-sm">Review and approve shift swap applications.</p>
+</div>
+<div class="flex gap-3">
+<button class="p-2 text-slate-500 hover:text-primary transition-colors relative bg-white dark:bg-[#152028] rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+<span class="material-icons">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-[#152028]"></span>
+</button>
+<div class="bg-white dark:bg-[#152028] px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+<span class="text-sm font-medium">3 Pending</span>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md shadow-primary/20 transition-all flex items-center gap-2">
+<span class="material-icons text-lg">add</span>
+<span class="hidden sm:inline">New Request</span>
+</button>
+</div>
+</div>
+<div class="bg-white dark:bg-[#152028] p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex flex-wrap gap-4 items-center justify-between">
+<div class="flex flex-1 items-center gap-3 min-w-[240px]">
+<div class="relative flex-1">
+<span class="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-background-dark border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all dark:text-white dark:placeholder-slate-500" placeholder="Search by name or role..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+<select class="bg-slate-50 dark:bg-background-dark border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer">
+<option>Status: All</option>
+<option>Pending</option>
+<option>Filled</option>
+<option>Expired</option>
+</select>
+<select class="bg-slate-50 dark:bg-background-dark border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-700 dark:text-slate-300 focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer">
+<option>Role: All</option>
+<option>Waitstaff</option>
+<option>Kitchen</option>
+<option>Reception</option>
+</select>
+<button class="p-2 text-slate-500 hover:text-primary transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700 rounded-lg">
+<span class="material-icons text-xl">filter_list</span>
+</button>
+</div>
+</div>
+<div class="bg-white dark:bg-[#152028] rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex-1">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/50 dark:bg-slate-800/20 border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">
+<th class="p-4 font-semibold whitespace-nowrap">Employee</th>
+<th class="p-4 font-semibold whitespace-nowrap">Shift Date</th>
+<th class="p-4 font-semibold whitespace-nowrap">Time</th>
+<th class="p-4 font-semibold whitespace-nowrap">Role</th>
+<th class="p-4 font-semibold whitespace-nowrap">Reason</th>
+<th class="p-4 font-semibold whitespace-nowrap">Status</th>
+<th class="p-4 font-semibold text-right whitespace-nowrap">Applicants</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<tr class="group hover:bg-primary/5 dark:hover:bg-primary/5 transition-colors cursor-pointer bg-primary/5 border-l-4 border-l-primary">
+<td class="p-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<div class="relative">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="Portrait of Sarah" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDtnxyhrOjth5FDv8Gxxval8DG3GvwhpAkSdZLBN98ubUxVTgI3aaoP3K8I4t608hj1eA_SM-6vEMJMiFXz0hHyAYXS4PJenKXat7NC2_fda4wfNgR8_6WWpHSF7llMuE9llSGaH9ef8YEV-6JbUVNCYAPzXHITpbzsIC3bPKp1yMgQRV6Vu_4UePW2qwTaaC4aAsRdtqGe-DxW979LgC9gRSqgYvESBdAaMRYchVVhk2YzlUW_Aa8SrwMtxpipsSDozpyu5JFBuw"/>
+<div class="absolute -bottom-1 -right-1 bg-white dark:bg-[#152028] rounded-full p-0.5">
+<div class="w-2.5 h-2.5 bg-green-500 rounded-full border border-white dark:border-[#152028]"></div>
+</div>
+</div>
+<div>
+<p class="font-medium text-slate-900 dark:text-white">Sarah Jenkins</p>
+<p class="text-xs text-slate-500">Waitstaff</p>
+</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+<span class="material-icons text-base text-slate-400">calendar_today</span>
+<span class="text-sm font-medium">Oct 24, 2023</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap">09:00 - 17:00</td>
+<td class="p-4 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">Floor 2</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20">
+                                                Family Emergency
+                                            </span>
+</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-500/20">
+<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span>
+                                                Pending
+                                            </span>
+</td>
+<td class="p-4 text-right whitespace-nowrap">
+<div class="inline-flex -space-x-2 mr-2">
+<img class="w-7 h-7 rounded-full border-2 border-white dark:border-slate-800" data-alt="Applicant 1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAq70Fw_h2rkkrDxqtn9WBFwRRQeqyPUKqTirBIuszgz4aWb_MxUIaHtMOH02JD6KC9PUCMRuFkkYlNUKl2Vvm90LrV3nE9Qw6LA_EbiUD-3piNTwIgv3LzHrScdcCvOKiAV73EznWau1FhLHi6bUVkdLnVz18Sh5b29XVhUdRzGuHCbUrcnzL6YdzHSTxuXHtGt0K_Y-NaVovPAaZBUpri9sTRLpB6kxGdcP_j15cQWIuxPiAWezxCngjKGxNoH1iVo8ERQ9re39g"/>
+<img class="w-7 h-7 rounded-full border-2 border-white dark:border-slate-800" data-alt="Applicant 2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAHiX4GxQwFHm-f_Xb1-CgMdy1EKP65APOtKWhcSsZgzshzGnEWpbnYlV4V_sQpKNeKrRqSrqk5Us81V0KlNhUo45QiEWOxyKKIoA0RgVLIUPhVOL8HcFD4YViqUJ9wdMtu1t3QwLTTLf-v82wX5nm0HzYU16R5-iZD5Kku3mzLQ9d-6PBuu3VVpODy6Z5b6HmHI_phgPqux4ZXl6aEhXUSQCvGw2MOZUWenNcPx2PMsQrZ2Tb0LUWM2uufV1YS0074Ghf0YdpulcM"/>
+</div>
+<span class="text-xs font-medium text-primary hover:underline">Review (2)</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer border-l-4 border-l-transparent">
+<td class="p-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded-full object-cover" data-alt="Portrait of David" src="https://lh3.googleusercontent.com/aida-public/AB6AXuArfCEtfqOjwU-3YfAWROsCmUarbtvUh3y_Y5ADZpqjXInDXuHvjli8P_wzJOlIKX2KG3cGX5SA_yw9nzUNSeTwFDK7OegmZqq7rKA27T2R-HrkcROcvQ0I6ebAmHRjA2JeP76OzjxoNNxEu4qRbxZr-h7vbYQZq5dB6Z7DKGenAHDadEuv5dG7nTHDIuJAxuDhpbtodsYYhPoH9tmJMIlBBJY6QKiqQO0P7HZRrg0DMswwJvqpjK-5qWHW6TygyJe9UvIq9W1vyeg"/>
+<div>
+<p class="font-medium text-slate-900 dark:text-white">David Chen</p>
+<p class="text-xs text-slate-500">Kitchen</p>
+</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+<span class="material-icons text-base text-slate-400">calendar_today</span>
+<span class="text-sm font-medium">Oct 25, 2023</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap">16:00 - 23:00</td>
+<td class="p-4 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">Line Cook</td>
+<td class="p-4 whitespace-nowrap">
+<span class="text-sm text-slate-600 dark:text-slate-400">Medical Appt.</span>
+</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary dark:text-primary-400 border border-primary/20">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                                Pending
+                                            </span>
+</td>
+<td class="p-4 text-right whitespace-nowrap">
+<span class="text-xs text-slate-400 italic">No applicants</span>
+</td>
+</tr>
+<tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer border-l-4 border-l-transparent opacity-60 hover:opacity-100">
+<td class="p-4 whitespace-nowrap">
+<div class="flex items-center gap-3">
+<img class="w-10 h-10 rounded-full object-cover grayscale" data-alt="Portrait of Emily" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbPQLXFLW7HFPYazwk6CylFDa0nix6tEWl6kVq5DouS4wsDx7SKSno0CTqwGmE907LwtYoq99Y4kksTjhohLmv1X0lW6E_ZLMr1rYJGWRyoxS_pfx10E4-B8q92Epjl2ISjttHGjvvGaVEI74kp4Rgg_VBitERD0t_wLpx87tshTG1pyTQluASX0XIv8ZX1gHxQFzpPvKkiJgU2QMPqJJxbSTq0FRdBl4JUz31_jqiqzrwI1qISBaGWr8T93_WWr81EFfHoY5eeus"/>
+<div>
+<p class="font-medium text-slate-900 dark:text-white">Emily Blunt</p>
+<p class="text-xs text-slate-500">Reception</p>
+</div>
+</div>
+</td>
+<td class="p-4 whitespace-nowrap">
+<div class="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+<span class="material-icons text-base text-slate-400">calendar_today</span>
+<span class="text-sm font-medium">Oct 20, 2023</span>
+</div>
+</td>
+<td class="p-4 text-sm text-slate-600 dark:text-slate-400 font-mono whitespace-nowrap">08:00 - 16:00</td>
+<td class="p-4 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">Front Desk</td>
+<td class="p-4 whitespace-nowrap">
+<span class="text-sm text-slate-600 dark:text-slate-400">Sick Leave</span>
+</td>
+<td class="p-4 whitespace-nowrap">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400 border border-green-200 dark:border-green-500/20">
+                                                Filled
+                                            </span>
+</td>
+<td class="p-4 text-right whitespace-nowrap">
+<div class="flex items-center justify-end gap-2">
+<span class="text-xs text-slate-500">Covered by</span>
+<img class="w-6 h-6 rounded-full" data-alt="Covered by Mark" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGvvyVK5X7PoektRSf-Y_lce5RfSWi2QxfrqCXO6uTC3W_ptXBkLZCjhtB0dBWYEhREbMu69p7BXodMYMDX_wnNbVa8rlHdSMwSCb6VXCoJLHG_qiZw_ICPN0NDJ6QYhNuDH3mEf_-Vxo25cNrJ1I1mmxsYfgKDGloxYLZfg8NF7wNf5xztb2T88Qj3yqOEzmO8N0-Nfsa6fLwsb4ATLVamyDbYrqMstT0s5pm3hc1R1fB5fKXolrriB9wx3nrAWrrIdwZNpu7Ics"/>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+<p class="text-sm text-slate-500">Showing 1 to 3 of 12 entries</p>
+<div class="flex gap-2">
+<button class="px-3 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">Previous</button>
+<button class="px-3 py-1 text-sm bg-primary text-white rounded hover:bg-primary/90">1</button>
+<button class="px-3 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">2</button>
+<button class="px-3 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400">Next</button>
+</div>
+</div>
+</div>
+</section>
+<aside class="w-[380px] hidden xl:flex flex-col shrink-0 bg-white dark:bg-[#152028] border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg h-full overflow-hidden">
+<div class="p-6 border-b border-slate-100 dark:border-slate-800 relative bg-primary/5">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex justify-between items-start mb-4">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Review Applicants</h3>
+<button class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+<span class="material-icons">close</span>
+</button>
+</div>
+<div class="bg-white dark:bg-background-dark p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700">
+<div class="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+<img class="w-10 h-10 rounded-full border-2 border-white dark:border-slate-800 shadow-sm" data-alt="Requester photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXvHZbLuyWHpnpCcsTQOATjpnzRRZDBIghLX8dgVtaj2uL0rL8mB0JOAzd1xV6A2Uzsc1YJtq7-BcGDwHwJGcRCO101LoxAfvIm3kov885-8HSuRKHWQZa8BmO5KUnWdixCmGMkpt_Y7tVmm91JkBAQt2Lfl74L40fk3B5NJLjqE-XSLcyAGKiIJgpQsWdA3qpepmart8lyMp01A3eFvaAm8qQVOPFbFzpq3wCvag-DCFONtXEmHWfuY07s9ZLMfcLh7PEMfhsuKA"/>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Cover for Sarah Jenkins</p>
+<p class="text-xs text-slate-500">Waitstaff</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-y-2 text-sm">
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-icons text-base">calendar_today</span>
+<span>Oct 24</span>
+</div>
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+<span class="material-icons text-base">schedule</span>
+<span>09:00 - 17:00</span>
+</div>
+<div class="flex items-center gap-2 text-slate-600 dark:text-slate-400 col-span-2">
+<span class="material-icons text-base">location_on</span>
+<span>Floor 2, Main Dining Area</span>
+</div>
+</div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-4">
+<div class="flex justify-between items-center mb-2">
+<h4 class="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 tracking-wider">2 Applicants</h4>
+<span class="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">Waitstaff Only</span>
+</div>
+<div class="group bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200 relative overflow-hidden">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700" data-alt="Applicant Mike" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6-Mu7JTNX8_qyWQqgATogusQgAIKzj4ZUmO7WjmlZGsSE1bL2gqH-8JwVyGga7gGUpnKjCpvT1goqur4YX8Cpfz4_LVD0PChYBBdok3JbxwqH5TkAzmnZUn5PNfiFezbRv7wBlQnxENFeq3lQuT6XA4m8o2PyQjxMreJB9ojvRl3ovfgE98iNxQgV2zxgiv1uMnY1lNbz2RDnDn-hGrUWJUJ2ONy9IamBZTf3q0CmaZCZo_rjjRftyibwvQ2TYdf-kjVAB_NCoow"/>
+<div>
+<h5 class="font-semibold text-slate-900 dark:text-white">Mike Ross</h5>
+<p class="text-xs text-slate-500">Applied 2m ago</p>
+</div>
+</div>
+<div class="text-right">
+<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 mb-1">
+                                        High Match
+                                    </span>
+</div>
+</div>
+<div class="flex gap-4 mb-4 text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
+<div>
+<p class="text-slate-400 mb-0.5">Weekly Hours</p>
+<p class="font-medium text-slate-700 dark:text-slate-300">24 / 40 hrs</p>
+</div>
+<div>
+<p class="text-slate-400 mb-0.5">Overlap</p>
+<p class="font-medium text-green-600 dark:text-green-400">None</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30">Approve</button>
+<button class="flex-1 bg-transparent border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-red-500 hover:border-red-200 transition-colors">Reject</button>
+</div>
+</div>
+<div class="group bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-200">
+<div class="flex justify-between items-start mb-3">
+<div class="flex items-center gap-3">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-slate-100 dark:border-slate-700" data-alt="Applicant Jessica" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDEDpv6Px-IFmcqtbrTfAvCUSKU0kEr9ca2-_1l_opbyOx5MY90GOFDWIdSK45OSef0jl_LqOwXgCnH4TOcDq-oI_ogryz8fRQYmcd51d4RWpQUTtTFsJ9AFn57wJfwHCU66cVOuwG6PRM2mc9eOoyFT4CLeo5xfl6Hzpp6b7kpxnRAe8Ln-XbyARVgAy8U25adWAT1lLdvnqNSWa7zaN7tpS2xD8YZ2VGbehjcODbur3Gc4otcJxPt7AJmkfkWS1EX0s8ztziWlo0"/>
+<div>
+<h5 class="font-semibold text-slate-900 dark:text-white">Jessica Pearson</h5>
+<p class="text-xs text-slate-500">Applied 1h ago</p>
+</div>
+</div>
+<div class="text-right">
+<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 mb-1">
+                                        Overtime Risk
+                                    </span>
+</div>
+</div>
+<div class="flex gap-4 mb-4 text-xs border-t border-slate-100 dark:border-slate-800 pt-3">
+<div>
+<p class="text-slate-400 mb-0.5">Weekly Hours</p>
+<p class="font-medium text-orange-600 dark:text-orange-400">38 / 40 hrs</p>
+</div>
+<div>
+<p class="text-slate-400 mb-0.5">Experience</p>
+<p class="font-medium text-slate-700 dark:text-slate-300">Senior</p>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30">Approve</button>
+<button class="flex-1 bg-transparent border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-red-500 hover:border-red-200 transition-colors">Reject</button>
+</div>
+</div>
+</div>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/20 text-center">
+<button class="text-xs text-primary hover:text-primary/80 font-medium flex items-center justify-center gap-1">
+<span class="material-icons text-sm">history</span>
+                            View Request History
+                        </button>
+</div>
+</aside>
+</div>
+</main>
+</div>
+
+</body></html>

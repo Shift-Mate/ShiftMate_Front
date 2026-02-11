@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Employee Portal: Substitute Requests</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13a4ec",
+                        "primary-hover": "#0f8bc7",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101c22",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a2c35",
+                        "text-primary-light": "#1e293b",
+                        "text-secondary-light": "#64748b",
+                        "text-primary-dark": "#e2e8f0",
+                        "text-secondary-dark": "#94a3b8",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .modal-overlay {
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-primary-light dark:text-text-primary-dark h-screen overflow-hidden flex">
+<!-- Sidebar -->
+<aside class="w-64 h-full bg-surface-light dark:bg-surface-dark border-r border-gray-200 dark:border-gray-700 flex flex-col z-10 hidden md:flex">
+<div class="p-6 flex items-center space-x-3">
+<div class="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+<span class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">SmartShift</span>
+</div>
+<nav class="flex-1 px-4 space-y-1 mt-4">
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors" href="#">
+<span class="material-icons text-xl">dashboard</span>
+<span class="font-medium">Dashboard</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors" href="#">
+<span class="material-icons text-xl">calendar_month</span>
+<span class="font-medium">My Schedule</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 bg-primary/10 text-primary rounded-lg transition-colors" href="#">
+<span class="material-icons text-xl">swap_horiz</span>
+<span class="font-medium">Substitutes</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors" href="#">
+<span class="material-icons text-xl">access_time</span>
+<span class="font-medium">Time Clock</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors" href="#">
+<span class="material-icons text-xl">payments</span>
+<span class="font-medium">Payslips</span>
+</a>
+</nav>
+<div class="p-4 border-t border-gray-200 dark:border-gray-700">
+<a class="flex items-center space-x-3 px-2 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors" href="#">
+<img class="w-8 h-8 rounded-full border border-gray-200 dark:border-gray-600 object-cover" data-alt="User profile avatar showing a smiling man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCQN71CI8wvKob-O8sR0FDvxdR0Z2APwN5iJt94R0o7QRSIwMi_6zoRODnKoTUPH1wEz6IDAnTHKM5l2y4f1jXjbShoLsPhvtLd632YRj7ak4sHODTypQyYluImLwMJLIFUqN3wk_-RePvL_yYVq4rhlRA8UKX_3fkXxquRkgIUfaHKfhFloV0sDxa6O0Gw0MBxdO1Av_JAnqsONPNa4pgCyMdgCH3fl2tH8NvwcmOvOHfsR8G_1kfKpZ9havxDHygFbjrIs0HPWvQ"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-gray-900 dark:text-white truncate">Alex Morgan</p>
+<p class="text-xs text-gray-500 dark:text-gray-400 truncate">Barista</p>
+</div>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-full overflow-hidden relative">
+<!-- Top Bar -->
+<header class="h-16 bg-surface-light dark:bg-surface-dark border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6 lg:px-8">
+<div class="flex items-center md:hidden">
+<button class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+<span class="material-icons">menu</span>
+</button>
+<span class="ml-3 font-semibold text-lg">SmartShift</span>
+</div>
+<div class="hidden md:block">
+<h1 class="text-xl font-semibold text-gray-800 dark:text-white">Substitute Management</h1>
+</div>
+<div class="flex items-center space-x-4">
+<button class="relative p-2 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">
+<span class="material-icons">notifications</span>
+<span class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-surface-dark"></span>
+</button>
+</div>
+</header>
+<!-- Content Area -->
+<div class="flex-1 overflow-y-auto p-6 lg:p-8">
+<div class="max-w-5xl mx-auto">
+<!-- Tabs and Action -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+<div class="border-b border-gray-200 dark:border-gray-700 w-full sm:w-auto">
+<nav aria-label="Tabs" class="-mb-px flex space-x-8">
+<a class="border-primary text-primary whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2" href="#">
+<span class="material-icons text-base">outbox</span>
+                                My Requests
+                            </a>
+<a class="border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2" href="#">
+<span class="material-icons text-base">inbox</span>
+                                Available Shifts
+                                <span class="ml-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 py-0.5 px-2 rounded-full text-xs">2</span>
+</a>
+<a class="border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2" href="#">
+<span class="material-icons text-base">history</span>
+                                History
+                            </a>
+</nav>
+</div>
+<button class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
+<span class="material-icons text-sm mr-2">add</span>
+                        New Request
+                    </button>
+</div>
+<!-- Requests List -->
+<div class="bg-surface-light dark:bg-surface-dark shadow rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+<ul class="divide-y divide-gray-200 dark:divide-gray-700" role="list">
+<!-- Item 1: Pending -->
+<li class="p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition duration-150 ease-in-out">
+<div class="flex items-center justify-between">
+<div class="flex flex-col sm:flex-row sm:items-center gap-4">
+<div class="flex-shrink-0 flex flex-col items-center justify-center bg-blue-50 dark:bg-blue-900/20 w-16 h-16 rounded-lg text-primary">
+<span class="text-xs font-bold uppercase">Feb</span>
+<span class="text-xl font-bold">10</span>
+</div>
+<div>
+<h3 class="text-base font-semibold text-gray-900 dark:text-white">Opening Shift</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
+<span class="material-icons text-sm mr-1">schedule</span> 08:00 AM - 02:00 PM
+                                            <span class="mx-2 text-gray-300 dark:text-gray-600">|</span>
+<span class="material-icons text-sm mr-1">location_on</span> Main Floor
+                                        </p>
+<p class="text-sm text-gray-500 dark:text-gray-400 mt-1 italic">"Doctor's appointment I can't reschedule"</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-3">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+<span class="w-1.5 h-1.5 bg-yellow-400 rounded-full mr-1.5"></span>
+                                        Pending
+                                    </span>
+<div class="flex space-x-2">
+<button class="text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
+<span class="material-icons text-xl">edit</span>
+</button>
+<button class="text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+<span class="material-icons text-xl">delete</span>
+</button>
+</div>
+</div>
+</div>
+</li>
+<!-- Item 2: Approved -->
+<li class="p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition duration-150 ease-in-out opacity-75">
+<div class="flex items-center justify-between">
+<div class="flex flex-col sm:flex-row sm:items-center gap-4">
+<div class="flex-shrink-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-800 w-16 h-16 rounded-lg text-gray-500">
+<span class="text-xs font-bold uppercase">Jan</span>
+<span class="text-xl font-bold">28</span>
+</div>
+<div>
+<h3 class="text-base font-semibold text-gray-900 dark:text-white">Closing Shift</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
+<span class="material-icons text-sm mr-1">schedule</span> 04:00 PM - 10:00 PM
+                                            <span class="mx-2 text-gray-300 dark:text-gray-600">|</span>
+<span class="material-icons text-sm mr-1">location_on</span> Back Office
+                                        </p>
+<p class="text-sm text-gray-500 dark:text-gray-400 mt-1 italic">"Family emergency"</p>
+</div>
+</div>
+<div class="flex flex-col items-end gap-3">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+<span class="w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"></span>
+                                        Covered
+                                    </span>
+<div class="text-xs text-gray-400">Covered by Sarah J.</div>
+</div>
+</div>
+</li>
+</ul>
+<!-- Empty State Placeholder (Visual Balance) -->
+<!-- <div class="p-12 text-center">
+                        <span class="material-icons text-4xl text-gray-300 dark:text-gray-600 mb-2">event_busy</span>
+                        <p class="text-gray-500 dark:text-gray-400">No other active requests found.</p>
+                    </div> -->
+</div>
+</div>
+</div>
+<!-- Modal Overlay -->
+<div aria-labelledby="modal-title" aria-modal="true" class="absolute inset-0 z-50 overflow-y-auto" role="dialog">
+<!-- Background backdrop -->
+<div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+<div aria-hidden="true" class="fixed inset-0 bg-gray-900 bg-opacity-75 modal-overlay transition-opacity"></div>
+<!-- This element is to trick the browser into centering the modal contents. -->
+<span aria-hidden="true" class="hidden sm:inline-block sm:align-middle sm:h-screen">​</span>
+<!-- Modal Panel -->
+<div class="relative inline-block align-bottom bg-surface-light dark:bg-surface-dark rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full ring-1 ring-black ring-opacity-5">
+<div class="bg-surface-light dark:bg-surface-dark px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+<div class="sm:flex sm:items-start">
+<div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 sm:mx-0 sm:h-10 sm:w-10">
+<span class="material-icons text-primary">swap_horiz</span>
+</div>
+<div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+<h3 class="text-lg leading-6 font-semibold text-gray-900 dark:text-white" id="modal-title">
+                                    Request a Substitute
+                                </h3>
+<div class="mt-2">
+<p class="text-sm text-gray-500 dark:text-gray-400">
+                                        Select a shift you need covered. This request will be sent to eligible employees.
+                                    </p>
+</div>
+<!-- Form Fields -->
+<div class="mt-6 space-y-4">
+<div>
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="shift">Select Shift</label>
+<div class="relative">
+<select class="block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm" id="shift" name="shift">
+<option>Feb 18 • Opening Shift (08:00 - 14:00)</option>
+<option>Feb 19 • Mid-Day Shift (12:00 - 18:00)</option>
+<option>Feb 22 • Closing Shift (16:00 - 22:00)</option>
+</select>
+</div>
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" for="reason">Reason (Optional)</label>
+<div class="mt-1">
+<textarea class="shadow-sm focus:ring-primary focus:border-primary block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-3" id="reason" name="reason" placeholder="Briefly explain why you need coverage..." rows="3"></textarea>
+</div>
+</div>
+<div class="flex items-center mt-2">
+<input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" id="urgent" name="urgent" type="checkbox"/>
+<label class="ml-2 block text-sm text-gray-700 dark:text-gray-300" for="urgent">
+                                            Mark as urgent
+                                        </label>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+<button class="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm transition-colors" type="button">
+                            Submit Request
+                        </button>
+<button class="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-transparent text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors" type="button">
+                            Cancel
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

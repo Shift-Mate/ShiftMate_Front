@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Authentication &amp; Onboarding - Smart Scheduler</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13a4ec",
+                        "primary-hover": "#0f8bc7",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101c22",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#1a262d",
+                        "border-light": "#e2e8f0",
+                        "border-dark": "#2d3b45",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom styles for smoother transitions not covered by utility classes */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+        /* Input Focus Ring Customization to match theme */
+        .input-focus:focus {
+            outline: none;
+            border-color: #13a4ec;
+            box-shadow: 0 0 0 4px rgba(19, 164, 236, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<div class="flex-1 w-full h-screen grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
+<!-- Left Side: Form Container -->
+<div class="relative flex flex-col justify-center items-center px-6 py-12 lg:px-16 xl:px-24 bg-surface-light dark:bg-surface-dark overflow-y-auto">
+<!-- Mobile Logo (Visible on small screens) -->
+<div class="absolute top-8 left-8 lg:hidden flex items-center gap-2 mb-8">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-xl">schedule</span>
+</div>
+<span class="font-bold text-lg text-slate-900 dark:text-white tracking-tight">TimeSync</span>
+</div>
+<!-- Main Content Container -->
+<div class="w-full max-w-md mx-auto space-y-8">
+<!-- Header -->
+<div class="text-center space-y-2">
+<h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome back</h1>
+<p class="text-slate-500 dark:text-slate-400">Enter your credentials to access your dashboard.</p>
+</div>
+<!-- Auth Toggle (Segmented Control) -->
+<div class="bg-slate-100 dark:bg-background-dark p-1 rounded-lg grid grid-cols-2 gap-1">
+<button class="py-2 px-4 rounded shadow-sm bg-white dark:bg-surface-dark text-sm font-medium text-primary transition-all duration-200">
+                        Log In
+                    </button>
+<button class="py-2 px-4 rounded hover:bg-white/50 dark:hover:bg-surface-dark/50 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-all duration-200">
+                        Sign Up
+                    </button>
+</div>
+<!-- Form -->
+<form class="space-y-5" onsubmit="event.preventDefault();">
+<!-- Form Fields -->
+<div class="space-y-4">
+<!-- Sign Up Fields (Hidden by default, structure for layout) -->
+<div class="hidden space-y-4" id="signup-fields">
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" for="first-name">First name</label>
+<input class="flex h-10 w-full rounded-md border border-slate-200 dark:border-border-dark bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 input-focus transition-all dark:text-white" id="first-name" placeholder="Jane" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" for="last-name">Last name</label>
+<input class="flex h-10 w-full rounded-md border border-slate-200 dark:border-border-dark bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 input-focus transition-all dark:text-white" id="last-name" placeholder="Doe" type="text"/>
+</div>
+</div>
+<!-- Role Selection -->
+<div class="space-y-2">
+<label class="text-sm font-medium leading-none">I am a...</label>
+<div class="grid grid-cols-2 gap-4">
+<label class="cursor-pointer relative">
+<input checked="" class="peer sr-only" name="role" type="radio" value="employee"/>
+<div class="rounded-lg border-2 border-slate-200 dark:border-border-dark p-3 hover:bg-slate-50 dark:hover:bg-background-dark peer-checked:border-primary peer-checked:bg-primary/5 transition-all">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-xl">badge</span>
+<span class="font-medium text-sm">Employee</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400">View shifts &amp; clock in</p>
+</div>
+</label>
+<label class="cursor-pointer relative">
+<input class="peer sr-only" name="role" type="radio" value="manager"/>
+<div class="rounded-lg border-2 border-slate-200 dark:border-border-dark p-3 hover:bg-slate-50 dark:hover:bg-background-dark peer-checked:border-primary peer-checked:bg-primary/5 transition-all">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-primary text-xl">manage_accounts</span>
+<span class="font-medium text-sm">Manager</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400">Manage team &amp; schedules</p>
+</div>
+</label>
+</div>
+</div>
+</div>
+<!-- Common Fields -->
+<div class="space-y-2">
+<label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" for="email">Email</label>
+<input class="flex h-10 w-full rounded-md border border-slate-200 dark:border-border-dark bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 input-focus transition-all dark:text-white" id="email" placeholder="name@company.com" type="email"/>
+</div>
+<div class="space-y-2">
+<div class="flex items-center justify-between">
+<label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70" for="password">Password</label>
+<a class="text-sm font-medium text-primary hover:text-primary-hover hover:underline" href="#">Forgot password?</a>
+</div>
+<div class="relative">
+<input class="flex h-10 w-full rounded-md border border-slate-200 dark:border-border-dark bg-transparent px-3 py-2 text-sm placeholder:text-slate-400 input-focus transition-all dark:text-white pr-10" id="password" type="password"/>
+<button class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" type="button">
+<span class="material-symbols-outlined text-lg">visibility_off</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Submit Button -->
+<button class="inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300 bg-primary text-white hover:bg-primary-hover h-10 w-full shadow-lg shadow-primary/20">
+                        Sign In
+                    </button>
+<!-- Divider -->
+<div class="relative">
+<div class="absolute inset-0 flex items-center">
+<span class="w-full border-t border-slate-200 dark:border-border-dark"></span>
+</div>
+<div class="relative flex justify-center text-xs uppercase">
+<span class="bg-surface-light dark:bg-surface-dark px-2 text-slate-500">Or continue with</span>
+</div>
+</div>
+<!-- Social Logins -->
+<div class="grid grid-cols-2 gap-4">
+<button class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300 border border-slate-200 dark:border-border-dark bg-white dark:bg-surface-dark hover:bg-slate-50 dark:hover:bg-background-dark h-10 w-full text-slate-900 dark:text-white gap-2">
+<svg aria-hidden="true" class="h-4 w-4" data-icon="google" data-prefix="fab" focusable="false" role="img" viewbox="0 0 488 512" xmlns="http://www.w3.org/2000/svg"><path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z" fill="currentColor"></path></svg>
+                            Google
+                        </button>
+<button class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300 border border-slate-200 dark:border-border-dark bg-white dark:bg-surface-dark hover:bg-slate-50 dark:hover:bg-background-dark h-10 w-full text-slate-900 dark:text-white gap-2">
+<svg aria-hidden="true" class="h-4 w-4" data-icon="microsoft" data-prefix="fab" focusable="false" role="img" viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><path d="M0 32h214.6v214.6H0V32zm233.4 0H448v214.6H233.4V32zM0 265.4h214.6V480H0V265.4zm233.4 0H448V480H233.4V265.4z" fill="currentColor"></path></svg>
+                           Microsoft
+                        </button>
+</div>
+</form>
+<!-- Footer Text -->
+<p class="px-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    By clicking continue, you agree to our <a class="underline underline-offset-4 hover:text-primary" href="#">Terms of Service</a> and <a class="underline underline-offset-4 hover:text-primary" href="#">Privacy Policy</a>.
+                </p>
+</div>
+<!-- Footer Rights -->
+<div class="absolute bottom-6 text-xs text-slate-400 w-full text-center">
+                © 2023 TimeSync Platform. All rights reserved.
+            </div>
+</div>
+<!-- Right Side: Visual / Branding -->
+<div class="hidden lg:flex flex-col relative bg-primary/10 dark:bg-primary/5 p-8 lg:p-12 xl:p-16 justify-between overflow-hidden">
+<!-- Branding Header -->
+<div class="relative z-10 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary shadow-lg shadow-primary/30 flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-2xl">schedule</span>
+</div>
+<span class="font-bold text-2xl text-slate-900 dark:text-white tracking-tight">TimeSync</span>
+</div>
+<!-- Central Visual -->
+<div class="relative z-10 flex-1 flex items-center justify-center py-10">
+<!-- Abstract Design / Illustration Placeholders -->
+<div class="relative w-full max-w-lg aspect-square">
+<!-- Background blobs -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-3xl translate-x-12 -translate-y-12"></div>
+<div class="absolute bottom-0 left-0 w-72 h-72 bg-purple-400/20 rounded-full blur-3xl -translate-x-12 translate-y-12"></div>
+<!-- Main Image Card -->
+<div class="relative h-full w-full rounded-2xl overflow-hidden shadow-2xl border border-white/20 dark:border-white/5 bg-white/10 backdrop-blur-sm group">
+<img alt="Team Collaboration" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="Modern team collaborating in a bright office space discussing schedules" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_jS5GqXcDfre03zKtk44Jff-hj7eN-YuIrGbdDVZIyo1-NaMysd6yj_y_GcT_QMvhMfrZrUpa2kd452eWOZUsCCxEgWYrQs_Qf5Mh7P5bSlk38H1bit9vejHQQUpUG9Ei3fHCDYaaCjpIiy7lnAntxtFnI2ld3-Q72Yv1xJbyIaClw0dIg64vVthvLRkpyH6fqdPCNqqOScGD3Ck83v-Tlss-zGOYVcR3Wqvhb3dO9ycmfe4YCNQG-_w5NhSdEiiu7uFRBsmck-I"/>
+<!-- Overlay Gradient -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+<!-- Floating UI Element Mockup -->
+<div class="absolute bottom-8 left-8 right-8 p-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white border-2 border-white/20">
+<span class="material-symbols-outlined text-lg">check</span>
+</div>
+<div>
+<div class="text-white font-medium text-sm">Shift Approved</div>
+<div class="text-white/60 text-xs">Manager Sarah just now</div>
+</div>
+</div>
+<div class="flex gap-2">
+<div class="h-2 w-16 rounded-full bg-white/20"></div>
+<div class="h-2 w-8 rounded-full bg-white/10"></div>
+</div>
+</div>
+</div>
+<!-- Decorative floating element -->
+<div class="absolute -right-6 top-1/4 p-4 bg-white dark:bg-surface-dark rounded-xl shadow-xl border border-slate-100 dark:border-border-dark animate-[bounce_3s_infinite]">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-green-500 bg-green-100 dark:bg-green-900/30 p-2 rounded-lg">event_available</span>
+<div>
+<div class="text-xs font-semibold text-slate-500 dark:text-slate-400">Team Coverage</div>
+<div class="text-sm font-bold text-slate-900 dark:text-white">100%</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Quote / Testimonial -->
+<div class="relative z-10 max-w-lg">
+<blockquote class="text-xl font-medium text-slate-900 dark:text-white leading-relaxed">
+                    "Streamline your workforce management. Simplify attendance, empower employees, and reclaim your time."
+                </blockquote>
+<div class="mt-4 flex items-center gap-2">
+<div class="flex -space-x-2">
+<img alt="User Avatar" class="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-surface-dark object-cover" data-alt="Portrait of a smiling young professional woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA2eH59UAsu80unLabRUcImkVeKFMRQyVp03a-XXCxdfkyPyfSJFgEkBpoudlMPby5Hh-pd41oGPSwLNfDIzszqAAR2JJHI4uyTk9h4lvIlt13RtvgbpdDO22M8bmCwg84THjRDi8L3PLlmXkC7PP36C4Kkok666aHtXT17LpAUmXgo8tRgzyPnHnK6c8ibM4glSQHOwgDooSJ7qXvRaFzbrvJhGeMOCCIgZs8jitEfiD5x1L57AsRW0Z-SUHtnH0cTd8E5MTfebBs"/>
+<img alt="User Avatar" class="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-surface-dark object-cover" data-alt="Portrait of a serious young professional man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkFw-b1138DAO36RszJ2xDwoAn_uPRhbzQS4X6SEU5Wp5vvaouGdvP28VLAKt0dzjHeiZ1Hv7zH2XtymH8VY0o-8oA_ggQusikcAn5DnW9kbpWtpt0_0Q0f0NCpvEySAbS74L7QRCcC4HNzYZcoCezKOGyTPqUBx_2KX3VB4IwgXkylZMmbWR2mkYWPs5FXRAVNQ8Assjyv69JBuckBH2kFw16WSI3VoK6aGngZl57GTswCdUGk8oOjVKdRbl-8U-6ATO4o2DtIho"/>
+<img alt="User Avatar" class="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-surface-dark object-cover" data-alt="Portrait of a smiling man with glasses" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCvyvEqFL9yKwUTCrsE8CBDxczr_TzQtUZTXzVT8stcbK6qukou_sLhiOcloZwVMeYxEe5aB2SBsdcMoe8IyNkj9dc5fj4HTeQhmL-MQDoTT_MmLPwpNw7_6DtV1dezTOroqCk6lxm_augne2F6PyReqlatdKCKCa6dkbpQaj0r7Cy_C01FayfBNQROKJ7rebmDWhvU-4XDOihB8jnkILGaKAQbLJESlR4wbwNyBOv4v3ZaS56WlXNDc9NLQiPlI_8mGGP9IfbqPnQ"/>
+</div>
+<span class="text-sm font-medium text-slate-500 dark:text-slate-400 ml-2">Trusted by 500+ teams</span>
+</div>
+</div>
+<!-- Background Pattern -->
+<div class="absolute inset-0 opacity-[0.03] dark:opacity-[0.05] pointer-events-none" style="background-image: radial-gradient(#13a4ec 1px, transparent 1px); background-size: 32px 32px;"></div>
+</div>
+</div>
+</body></html>
