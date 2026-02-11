@@ -1,65 +1,285 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="min-h-screen bg-background-light dark:bg-background-dark">
+      {/* Header / Navbar */}
+      <header className="sticky top-0 z-50 w-full backdrop-blur-lg bg-surface-light/80 dark:bg-surface-dark/80 border-b border-primary/10 dark:border-primary/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-20">
+            {/* Logo */}
+            <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+              <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white">
+                <span className="material-icons text-xl">schedule</span>
+              </div>
+              <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
+                ShiftMate
+              </span>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex space-x-8">
+              <a
+                href="#features"
+                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary font-medium transition-colors"
+              >
+                기능
+              </a>
+              <a
+                href="#how-it-works"
+                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary font-medium transition-colors"
+              >
+                작동 방식
+              </a>
+              <a
+                href="#testimonials"
+                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary font-medium transition-colors"
+              >
+                후기
+              </a>
+            </nav>
+
+            {/* Auth Buttons */}
+            <div className="hidden md:flex items-center space-x-4">
+              <Link
+                href="/auth/login"
+                className="text-slate-900 dark:text-white hover:text-primary font-medium px-4 py-2"
+              >
+                로그인
+              </Link>
+              <Link href="/auth/signup">
+                <Button>무료로 시작하기</Button>
+              </Link>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center">
+              <button className="text-slate-900 dark:text-white hover:text-primary focus:outline-none">
+                <span className="material-icons text-3xl">menu</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative pt-16 pb-24 lg:pt-32 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="text-center max-w-4xl mx-auto mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-semibold mb-6">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              AI 기반 자동 스케줄링
+            </div>
+
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight mb-6 text-slate-900 dark:text-white leading-tight">
+              스마트한 근무 일정 관리
+              <br className="hidden md:block" />
+              <span className="text-gradient-primary">현대적인 팀을 위한</span>
+            </h1>
+
+            <p className="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+              스프레드시트에 시간을 낭비하지 마세요. AI가 최적화된 근무 일정을 생성하고, 출퇴근을 추적하며, 대체 근무를 즉시 관리합니다.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/auth/signup">
+                <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-lg shadow-xl">
+                  무료로 시작하기
+                </Button>
+              </Link>
+              <Button
+                variant="secondary"
+                size="lg"
+                className="w-full sm:w-auto px-8 py-4 text-lg flex items-center gap-2"
+              >
+                <span className="material-icons text-primary">play_circle</span>
+                데모 보기
+              </Button>
+            </div>
+          </div>
+
+          {/* Hero Image Placeholder */}
+          <div className="relative mx-auto max-w-5xl">
+            <div className="absolute -top-12 -inset-x-12 bg-primary/20 blur-3xl h-[400px] rounded-full opacity-50 dark:opacity-30 pointer-events-none" />
+            <div className="relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center gap-2">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-400" />
+                  <div className="w-3 h-3 rounded-full bg-amber-400" />
+                  <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                </div>
+              </div>
+              <div className="p-2 bg-slate-100 dark:bg-slate-900 aspect-video flex items-center justify-center">
+                <p className="text-slate-400">대시보드 미리보기</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-24 bg-white dark:bg-surface-dark relative" id="features">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-primary font-bold tracking-wide uppercase text-sm mb-3">
+              핵심 기능
+            </h2>
+            <h3 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-6">
+              인력 관리에 필요한 모든 것
+            </h3>
+            <p className="text-lg text-slate-600 dark:text-slate-400">
+              관리자와 직원 모두를 위해 설계된 지능형 도구로 복잡한 스케줄링 작업을 단순화하세요.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="group p-8 bg-background-light dark:bg-background-dark rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-150" />
+              <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-colors">
+                <span className="material-icons text-3xl">auto_fix_high</span>
+              </div>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                AI 시프트 생성
+              </h4>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                원클릭 스케줄링: 알고리즘이 가용성, 노동법, 비용을 자동으로 균형있게 조정합니다.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="group p-8 bg-background-light dark:bg-background-dark rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-150" />
+              <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-colors">
+                <span className="material-icons text-3xl">fingerprint</span>
+              </div>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                출퇴근 추적
+              </h4>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                정밀한 출석 관리: GPS 인증 출퇴근, 생체 인식 옵션, 급여와 직접 동기화되는 실시간 타임시트.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="group p-8 bg-background-light dark:bg-background-dark rounded-xl border border-slate-100 dark:border-slate-800 hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-150" />
+              <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:bg-primary group-hover:text-white transition-colors">
+                <span className="material-icons text-3xl">sync_alt</span>
+              </div>
+              <h4 className="text-xl font-bold text-slate-900 dark:text-white mb-3">
+                대체 근무 관리
+              </h4>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed mb-6">
+                원활한 교대: 직원들이 자동화된 관리자 승인 워크플로로 즉시 시프트 교환을 처리합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-background-light dark:bg-background-dark relative overflow-hidden">
+        <div className="absolute inset-0 bg-primary/5 dark:bg-primary/5" />
+        <div className="absolute -left-20 top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute -right-20 bottom-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">
+            인력 관리를 자동화할 준비가 되셨나요?
+          </h2>
+          <p className="text-xl text-slate-600 dark:text-slate-400 mb-10">
+            시간을 되찾은 수천 명의 관리자와 함께하세요. 14일 무료 체험, 신용카드 불필요.
+          </p>
+
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link href="/auth/signup">
+              <Button size="lg" className="px-8 py-4 text-lg shadow-xl">
+                무료 체험 시작
+              </Button>
+            </Link>
+            <Button variant="secondary" size="lg" className="px-8 py-4 text-lg">
+              영업팀 문의
+            </Button>
+          </div>
+
+          <p className="mt-6 text-sm text-slate-600 dark:text-slate-400">
+            <span className="material-icons text-sm align-text-bottom mr-1">check</span>
+            신용카드 불필요
+            <span className="mx-2">•</span>
+            <span className="material-icons text-sm align-text-bottom mr-1">check</span>
+            언제든지 취소 가능
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-surface-light dark:bg-surface-dark pt-16 pb-8 border-t border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            <div className="col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white">
+                  <span className="material-icons text-xl">schedule</span>
+                </div>
+                <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
+                  ShiftMate
+                </span>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 max-w-xs mb-6">
+                현대 비즈니스를 위한 지능형 스케줄링 플랫폼. 시간을 절약하고, 비용을 줄이며, 팀을 행복하게 유지하세요.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-900 dark:text-white mb-4">제품</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+                    기능
+                  </a>
+                </li>
+                <li>
+                  <a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+                    가격
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-900 dark:text-white mb-4">회사</h4>
+              <ul className="space-y-2">
+                <li>
+                  <a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+                    소개
+                  </a>
+                </li>
+                <li>
+                  <a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm" href="#">
+                    문의
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              © 2024 ShiftMate Inc. All rights reserved.
+            </p>
+            <div className="flex gap-6">
+              <a className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary" href="#">
+                개인정보처리방침
+              </a>
+              <a className="text-sm text-slate-600 dark:text-slate-400 hover:text-primary" href="#">
+                이용약관
+              </a>
+            </div>
+          </div>
         </div>
-      </main>
+      </footer>
     </div>
   );
 }
