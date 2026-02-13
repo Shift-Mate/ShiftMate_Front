@@ -4,20 +4,18 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { UserRole } from "@/types/auth";
 
 export const SignupForm: React.FC = () => {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState<UserRole>("employee");
     const [showPassword, setShowPassword] = useState(false);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         // TODO: API 연동
-        console.log("Signup:", { firstName, lastName, email, password, role });
+        console.log("Signup:", { firstName, lastName, email, password });
     };
 
     return (
@@ -39,53 +37,6 @@ export const SignupForm: React.FC = () => {
                     placeholder="길동"
                     required
                 />
-            </div>
-
-            <div className="space-y-2">
-                <label className="text-sm font-medium leading-none">역할 선택</label>
-                <div className="grid grid-cols-2 gap-4">
-                    <label className="cursor-pointer relative">
-                        <input
-                            type="radio"
-                            name="role"
-                            value="employee"
-                            checked={role === "employee"}
-                            onChange={(e) => setRole(e.target.value as UserRole)}
-                            className="peer sr-only"
-                        />
-                        <div className="rounded-lg border-2 border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 peer-checked:border-primary peer-checked:bg-primary/5 transition-all">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="material-icons text-primary text-xl">badge</span>
-                                <span className="font-medium text-sm">직원</span>
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                근무 일정 확인 및 출퇴근
-                            </p>
-                        </div>
-                    </label>
-
-                    <label className="cursor-pointer relative">
-                        <input
-                            type="radio"
-                            name="role"
-                            value="manager"
-                            checked={role === "manager"}
-                            onChange={(e) => setRole(e.target.value as UserRole)}
-                            className="peer sr-only"
-                        />
-                        <div className="rounded-lg border-2 border-slate-200 dark:border-slate-700 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 peer-checked:border-primary peer-checked:bg-primary/5 transition-all">
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="material-icons text-primary text-xl">
-                                    manage_accounts
-                                </span>
-                                <span className="font-medium text-sm">관리자</span>
-                            </div>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                팀 및 일정 관리
-                            </p>
-                        </div>
-                    </label>
-                </div>
             </div>
 
             <Input

@@ -2,18 +2,45 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { authApi } from "@/lib/api/auth";
 
 export const LoginForm: React.FC = () => {
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: API 연동
-        console.log("Login:", { email, password });
+
+        setIsLoading(true);
+        setErrorMessage("");
+
+        try {
+            const response = await authApi.login({ email, password });
+
+            if (!response.success) {
+                throw new Error(
+                    response.error?.message || "로그인에 실패했습니다."
+                );
+            }
+
+            console.log("Login success:", response.data);
+            router.push("/");
+        } catch (error) {
+            setErrorMessage(
+                error instanceof Error
+                    ? error.message
+                    : "로그인 요청 중 오류가 발생했습니다."
+            );
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -59,9 +86,15 @@ export const LoginForm: React.FC = () => {
                 </div>
             </div>
 
-            <Button type="submit" className="w-full">
-                로그인
+            <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? "로그인 중..." : "로그인"}
             </Button>
+
+            {errorMessage && (
+                <p className="text-sm text-red-500" role="alert">
+                    {errorMessage}
+                </p>
+            )}
 
             <div className="relative">
                 <div className="absolute inset-0 flex items-center">

@@ -1,67 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { MainHeader } from "@/components/layout/MainHeader";
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(!!localStorage.getItem("auth_token"));
+  }, []);
+
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
-      {/* Header / Navbar */}
-      <header className="sticky top-0 z-50 w-full backdrop-blur-lg bg-surface-light/80 dark:bg-surface-dark/80 border-b border-primary/10 dark:border-primary/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* Logo */}
-            <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-white">
-                <span className="material-icons text-xl">schedule</span>
-              </div>
-              <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">
-                ShiftMate
-              </span>
-            </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex space-x-8">
-              <a
-                href="#features"
-                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary font-medium transition-colors"
-              >
-                기능
-              </a>
-              <a
-                href="#how-it-works"
-                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary font-medium transition-colors"
-              >
-                작동 방식
-              </a>
-              <a
-                href="#testimonials"
-                className="text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary font-medium transition-colors"
-              >
-                후기
-              </a>
-            </nav>
-
-            {/* Auth Buttons */}
-            <div className="hidden md:flex items-center space-x-4">
-              <Link
-                href="/auth/login"
-                className="text-slate-900 dark:text-white hover:text-primary font-medium px-4 py-2"
-              >
-                로그인
-              </Link>
-              <Link href="/auth/signup">
-                <Button>무료로 시작하기</Button>
-              </Link>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="md:hidden flex items-center">
-              <button className="text-slate-900 dark:text-white hover:text-primary focus:outline-none">
-                <span className="material-icons text-3xl">menu</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <MainHeader />
 
       {/* Hero Section */}
       <section className="relative pt-16 pb-24 lg:pt-32 overflow-hidden">
@@ -83,19 +36,11 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/auth/signup">
+              <Link href={isLoggedIn ? "/dashboard" : "/auth/login"}>
                 <Button size="lg" className="w-full sm:w-auto px-8 py-4 text-lg shadow-xl">
-                  무료로 시작하기
+                  대시보드로 이동
                 </Button>
               </Link>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full sm:w-auto px-8 py-4 text-lg flex items-center gap-2"
-              >
-                <span className="material-icons text-primary">play_circle</span>
-                데모 보기
-              </Button>
             </div>
           </div>
 
@@ -176,41 +121,6 @@ export default function Home() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-background-light dark:bg-background-dark relative overflow-hidden">
-        <div className="absolute inset-0 bg-primary/5 dark:bg-primary/5" />
-        <div className="absolute -left-20 top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute -right-20 bottom-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl" />
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-4xl font-bold text-slate-900 dark:text-white mb-6">
-            인력 관리를 자동화할 준비가 되셨나요?
-          </h2>
-          <p className="text-xl text-slate-600 dark:text-slate-400 mb-10">
-            시간을 되찾은 수천 명의 관리자와 함께하세요. 14일 무료 체험, 신용카드 불필요.
-          </p>
-
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link href="/auth/signup">
-              <Button size="lg" className="px-8 py-4 text-lg shadow-xl">
-                무료 체험 시작
-              </Button>
-            </Link>
-            <Button variant="secondary" size="lg" className="px-8 py-4 text-lg">
-              영업팀 문의
-            </Button>
-          </div>
-
-          <p className="mt-6 text-sm text-slate-600 dark:text-slate-400">
-            <span className="material-icons text-sm align-text-bottom mr-1">check</span>
-            신용카드 불필요
-            <span className="mx-2">•</span>
-            <span className="material-icons text-sm align-text-bottom mr-1">check</span>
-            언제든지 취소 가능
-          </p>
         </div>
       </section>
 

@@ -7,6 +7,26 @@ import {
 } from "@/types/auth";
 import { ApiResponse } from "@/types/api";
 
+const getAuthPayload = (data: any): any => {
+    if (data && typeof data === "object" && "data" in data) {
+        return data.data;
+    }
+    return data;
+};
+
+const getAccessToken = (data: any): string | undefined => {
+    if (!data || typeof data !== "object") {
+        return undefined;
+    }
+    if (typeof data.accessToken === "string") {
+        return data.accessToken;
+    }
+    if (typeof data.token === "string") {
+        return data.token;
+    }
+    return undefined;
+};
+
 export const authApi = {
     async login(
         credentials: LoginCredentials
@@ -17,7 +37,15 @@ export const authApi = {
         );
 
         if (response.success && response.data) {
-            apiClient.setToken(response.data.token);
+            const payload = getAuthPayload(response.data);
+            const accessToken = getAccessToken(payload);
+
+            if (accessToken) {
+                apiClient.setToken(accessToken);
+            }
+            if (payload?.refreshToken && typeof window !== "undefined") {
+                localStorage.setItem("refresh_token", payload.refreshToken);
+            }
         }
 
         return response;
@@ -27,7 +55,15 @@ export const authApi = {
         const response = await apiClient.post<AuthResponse>("/auth/signup", data);
 
         if (response.success && response.data) {
-            apiClient.setToken(response.data.token);
+            const payload = getAuthPayload(response.data);
+            const accessToken = getAccessToken(payload);
+
+            if (accessToken) {
+                apiClient.setToken(accessToken);
+            }
+            if (payload?.refreshToken && typeof window !== "undefined") {
+                localStorage.setItem("refresh_token", payload.refreshToken);
+            }
         }
 
         return response;
@@ -35,6 +71,9 @@ export const authApi = {
 
     async logout(): Promise<void> {
         apiClient.clearToken();
+        if (typeof window !== "undefined") {
+            localStorage.removeItem("refresh_token");
+        }
         // 서버에 로그아웃 요청 (선택사항)
         await apiClient.post("/auth/logout");
     },
@@ -49,7 +88,12 @@ export const authApi = {
         );
 
         if (response.success && response.data) {
-            apiClient.setToken(response.data.token);
+            const payload = getAuthPayload(response.data);
+            const accessToken = getAccessToken(payload);
+
+            if (accessToken) {
+                apiClient.setToken(accessToken);
+            }
         }
 
         return response;

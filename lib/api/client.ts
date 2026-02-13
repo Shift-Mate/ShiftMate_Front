@@ -1,6 +1,6 @@
 import { ApiResponse } from "@/types/api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
 
 class ApiClient {
     private baseUrl: string;
@@ -32,10 +32,20 @@ class ApiClient {
         endpoint: string,
         options: RequestInit = {}
     ): Promise<ApiResponse<T>> {
+        if (typeof window !== "undefined") {
+            const latestToken = localStorage.getItem("auth_token");
+            if (latestToken !== this.token) {
+                this.token = latestToken;
+            }
+        }
+
         const headers: Record<string, string> = {
-            "Content-Type": "application/json",
             ...(options.headers as Record<string, string>),
         };
+
+        if (options.body && !(options.body instanceof FormData)) {
+            headers["Content-Type"] = "application/json";
+        }
 
         if (this.token) {
             headers["Authorization"] = `Bearer ${this.token}`;
@@ -47,15 +57,30 @@ class ApiClient {
                 headers,
             });
 
-            const data = await response.json();
+            const contentType = response.headers.get("content-type") || "";
+            const isJson = contentType.includes("application/json");
+            const data =
+                response.status === 204
+                    ? null
+                    : isJson
+                      ? await response.json()
+                      : await response.text();
 
             if (!response.ok) {
                 return {
                     success: false,
                     error: {
                         code: response.status.toString(),
-                        message: data.message || "An error occurred",
-                        details: data,
+                        message:
+                            typeof data === "object" &&
+                            data !== null &&
+                            "message" in data
+                                ? String(data.message)
+                                : "An error occurred",
+                        details:
+                            typeof data === "object" && data !== null
+                                ? (data as Record<string, any>)
+                                : { raw: data },
                     },
                 };
             }

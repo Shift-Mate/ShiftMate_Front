@@ -1,8 +1,7 @@
 "use client";
 
-import React from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { TopBar } from "@/components/layout/TopBar";
+import Link from "next/link";
+import { MainHeader } from "@/components/layout/MainHeader";
 import { StoreCard } from "@/components/domain/StoreCard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
@@ -48,19 +47,18 @@ const mockStores: Store[] = [
     },
 ];
 
-const navItems = [
-    { label: "대시보드", href: "/dashboard", icon: "dashboard" },
-    { label: "직원", href: "/dashboard/staff", icon: "people" },
-    { label: "리포트", href: "/dashboard/reports", icon: "insert_chart" },
-];
+const storeRoleById: Record<string, "manager" | "employee"> = {
+    "1": "manager",
+    "2": "manager",
+    "3": "employee",
+    "4": "employee",
+};
 
 export default function DashboardPage() {
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-            <Sidebar navItems={navItems} userRole="manager" />
-
-            <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
-                <TopBar />
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+                <MainHeader />
 
                 <main className="flex-1 overflow-y-auto p-6">
                     <div className="max-w-7xl mx-auto space-y-6">
@@ -140,11 +138,18 @@ export default function DashboardPage() {
                         {/* Store Cards Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {mockStores.map((store) => (
-                                <StoreCard key={store.id} store={store} />
+                                <StoreCard
+                                    key={store.id}
+                                    store={store}
+                                    href={`/store?storeId=${store.id}&role=${storeRoleById[store.id]}`}
+                                />
                             ))}
 
                             {/* Add Store Card */}
-                            <button className="group relative flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl hover:border-primary hover:bg-primary/5 transition-all duration-300 h-full min-h-[300px] text-center">
+                            <Link
+                                href="/wizard"
+                                className="group relative flex flex-col items-center justify-center p-8 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl hover:border-primary hover:bg-primary/5 transition-all duration-300 h-full min-h-[300px] text-center"
+                            >
                                 <div className="h-16 w-16 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-white dark:group-hover:bg-surface-dark flex items-center justify-center mb-4 transition-colors shadow-sm group-hover:shadow-md">
                                     <span className="material-icons text-3xl text-slate-400 group-hover:text-primary transition-colors">
                                         add
@@ -156,7 +161,7 @@ export default function DashboardPage() {
                                 <p className="text-sm text-slate-500 dark:text-slate-400 max-w-[200px]">
                                     새로운 매장을 등록하여 일정 관리를 시작하세요.
                                 </p>
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </main>

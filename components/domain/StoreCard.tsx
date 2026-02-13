@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Card, CardBody, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Store, StoreStatus } from "@/types/store";
-import { cn } from "@/lib/utils";
 
 interface StoreCardProps {
     store: Store;
+    href?: string;
 }
 
 const getStatusVariant = (
@@ -35,13 +35,13 @@ const getStatusLabel = (status: StoreStatus): string => {
     }
 };
 
-export const StoreCard: React.FC<StoreCardProps> = ({ store }) => {
+export const StoreCard: React.FC<StoreCardProps> = ({ store, href }) => {
     const statusVariant = getStatusVariant(store.status);
     const statusLabel = getStatusLabel(store.status);
 
     return (
         <Link
-            href={`/dashboard/store/${store.id}`}
+            href={href || `/dashboard/store/${store.id}`}
             className="group relative bg-surface-light dark:bg-surface-dark rounded-xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col h-full"
         >
             {/* Status Badge */}
@@ -90,23 +90,6 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store }) => {
                         </div>
                     </div>
 
-                    <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 mb-2">
-                        <div
-                            className={cn(
-                                "h-1.5 rounded-full",
-                                store.shiftCoverage >= 80
-                                    ? "bg-green-500"
-                                    : store.shiftCoverage >= 50
-                                        ? "bg-primary"
-                                        : "bg-red-500"
-                            )}
-                            style={{ width: `${store.shiftCoverage}%` }}
-                        />
-                    </div>
-                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-                        <span>시프트 커버리지</span>
-                        <span>{store.shiftCoverage}%</span>
-                    </div>
                 </div>
             </CardBody>
 
