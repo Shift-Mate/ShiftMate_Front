@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
 
 export const MainHeader: React.FC = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -17,9 +18,14 @@ export const MainHeader: React.FC = () => {
     }, []);
 
     const handleLogout = async () => {
-        await authApi.logout();
-        setIsLoggedIn(false);
-        setIsProfileMenuOpen(false);
+        try {
+            await authApi.logout();
+        } finally {
+            setIsLoggedIn(false);
+            setIsProfileMenuOpen(false);
+            window.alert("로그아웃되었습니다.");
+            router.push("/");
+        }
     };
 
     const roleParam = searchParams.get("role");

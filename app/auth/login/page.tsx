@@ -1,17 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
 
 export default function AuthPage() {
     const [mode, setMode] = useState<"login" | "signup">("login");
 
+    const isSignup = mode === "signup";
+
     return (
         <div className="w-full h-screen grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
             {/* Left Side: Form Container */}
-            <div className="relative flex flex-col justify-center items-center px-6 py-12 lg:px-16 xl:px-24 bg-surface-light dark:bg-surface-dark overflow-y-auto">
+            <div
+                className={`relative flex flex-col justify-center items-center px-6 py-12 lg:px-16 xl:px-24 bg-surface-light dark:bg-surface-dark overflow-y-auto transition-transform duration-500 ease-in-out will-change-transform lg:z-10 ${
+                    isSignup ? "lg:translate-x-full" : "lg:translate-x-0"
+                }`}
+            >
                 {/* Mobile Logo */}
                 <div className="absolute top-8 left-8 lg:hidden flex items-center gap-2 mb-8">
                     <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
@@ -69,7 +74,11 @@ export default function AuthPage() {
             </div>
 
             {/* Right Side: Visual / Branding */}
-            <div className="hidden lg:flex flex-col relative bg-primary/10 dark:bg-primary/5 p-8 lg:p-12 xl:p-16 justify-between overflow-hidden">
+            <div
+                className={`hidden lg:flex flex-col relative bg-primary/10 dark:bg-primary/5 p-8 lg:p-12 xl:p-16 justify-between overflow-hidden transition-transform duration-500 ease-in-out will-change-transform ${
+                    isSignup ? "lg:-translate-x-full" : "lg:translate-x-0"
+                }`}
+            >
                 {/* Branding Header */}
                 <div className="relative z-10 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary shadow-lg shadow-primary/30 flex items-center justify-center text-white">
@@ -106,7 +115,7 @@ export default function AuthPage() {
                 {/* Quote / Testimonial */}
                 <div className="relative z-10 max-w-lg">
                     <blockquote className="text-xl font-medium text-slate-900 dark:text-white leading-relaxed">
-                        "인력 관리를 간소화하세요. 출퇴근을 단순화하고, 직원에게 권한을 부여하며, 시간을 되찾으세요."
+                        &quot;인력 관리를 간소화하세요. 출퇴근을 단순화하고, 직원에게 권한을 부여하며, 시간을 되찾으세요.&quot;
                     </blockquote>
                     <div className="mt-4 flex items-center gap-2">
                         <div className="flex -space-x-2">

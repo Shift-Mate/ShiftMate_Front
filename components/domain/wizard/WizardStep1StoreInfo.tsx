@@ -38,6 +38,21 @@ export function WizardStep1StoreInfo({ data, onChange }: Props) {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Input
+                        label="매장 위치 (선택)"
+                        value={data.location}
+                        onChange={(e) => onChange({ location: e.target.value })}
+                        placeholder="예: 서울 강남구"
+                    />
+                    <Input
+                        label="매장 별칭 (선택)"
+                        value={data.alias}
+                        onChange={(e) => onChange({ alias: e.target.value })}
+                        placeholder="예: GN"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
                         label="오픈 시간"
                         type="time"
                         value={data.openTime}
@@ -81,6 +96,15 @@ export function WizardStep1StoreInfo({ data, onChange }: Props) {
                         </Button>
                     </div>
                 </div>
+
+                <Input
+                    label="월 매출 (선택)"
+                    type="number"
+                    value={data.monthlySales}
+                    onChange={(e) => onChange({ monthlySales: e.target.value })}
+                    placeholder="예: 12000000"
+                    min={0}
+                />
             </div>
         </div>
     );

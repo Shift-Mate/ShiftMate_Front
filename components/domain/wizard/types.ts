@@ -1,4 +1,4 @@
-export type ShiftLogic = "fixed" | "demand";
+export type TemplateType = "COSTSAVER" | "HIGHSERVICE";
 
 export type StaffingByShift = {
     opening: number;
@@ -10,6 +10,9 @@ export type WizardFormData = {
     businessId: string;
     businessIdVerified: boolean;
     storeName: string;
+    location: string;
+    alias: string;
+    monthlySales: string;
     openTime: string;
     closeTime: string;
     shiftsPerDay: number;
@@ -17,6 +20,6 @@ export type WizardFormData = {
     peakStart: string;
     peakEnd: string;
     applyPeakAllDays: boolean;
-    shiftLogic: ShiftLogic;
+    templateType: TemplateType;
     staffing: StaffingByShift;
 };

@@ -8,17 +8,26 @@ import { Button } from "@/components/ui/Button";
 type Props = {
     data: WizardFormData;
     onChange: (patch: Partial<WizardFormData>) => void;
+    onVerify: () => Promise<void>;
+    isVerifying: boolean;
+    verifyError: string | null;
 };
 
-export function WizardStep0BusinessId({ data, onChange }: Props) {
+export function WizardStep0BusinessId({
+    data,
+    onChange,
+    onVerify,
+    isVerifying,
+    verifyError,
+}: Props) {
     const isFormatValid = useMemo(
-        () => /^\d{3}-\d{2}-\d{5}$/.test(data.businessId),
+        () => /^(\d{10}|\d{3}-\d{2}-\d{5})$/.test(data.businessId),
         [data.businessId]
     );
 
-    const handleVerify = () => {
+    const handleVerify = async () => {
         if (!isFormatValid) return;
-        onChange({ businessIdVerified: true });
+        await onVerify();
     };
 
     return (
@@ -49,11 +58,11 @@ export function WizardStep0BusinessId({ data, onChange }: Props) {
                     <Button
                         type="button"
                         onClick={handleVerify}
-                        disabled={!isFormatValid}
+                        disabled={!isFormatValid || isVerifying}
                         className="gap-2"
                     >
                         <span className="material-icons text-sm">verified_user</span>
-                        사업자 번호 검증
+                        {isVerifying ? "검증 중..." : "사업자 번호 검증"}
                     </Button>
 
                     {data.businessIdVerified ? (
@@ -62,10 +71,13 @@ export function WizardStep0BusinessId({ data, onChange }: Props) {
                         </span>
                     ) : (
                         <span className="text-sm text-slate-500 dark:text-slate-400">
-                            형식: 000-00-00000
+                            형식: 000-00-00000 또는 10자리 숫자
                         </span>
                     )}
                 </div>
+                {verifyError && (
+                    <p className="text-sm text-red-600 dark:text-red-400">{verifyError}</p>
+                )}
             </div>
         </div>
     );
