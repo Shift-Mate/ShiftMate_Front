@@ -1,22 +1,21 @@
-// 출퇴근 관련 타입
-export interface Attendance {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    date: string;
-    clockIn?: string;
-    clockOut?: string;
-    status: AttendanceStatus;
-    location?: string;
+import { ShiftType } from "./schedule";
+
+// 백엔드: WeeklyAttendanceResDto 대응
+export interface WeeklyAttendanceData {
+  workerName: string;
+  role: string;
+  department: string;
+  updatedStartTime: string; // ISO String
+  updatedEndTime: string; // ISO String
+  clockInAt: string | null;
+  clockOutAt: string | null;
+  status: "NORMAL" | "LATE" | "ABSENT" | "EARLY_LEAVE" | null;
+  workedMinutes: number;
 }
 
-export type AttendanceStatus = "present" | "absent" | "late" | "early_leave";
-
-export interface ClockInRequest {
-    pin: string;
-    location?: string;
-}
-
-export interface ClockOutRequest {
-    pin: string;
+// 백엔드: MyWeeklyAttendanceResDto 대응
+export interface MyWeeklyAttendanceResponse {
+  totalWorkTime: string;
+  totalMinutes: number;
+  weeklyData: WeeklyAttendanceData[];
 }
