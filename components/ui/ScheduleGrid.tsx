@@ -37,6 +37,11 @@ const getShiftTypeColor = (type: string) => {
     }
 };
 
+const parseMinutes = (time: string): number => {
+    const [hour = "0", minute = "0"] = time.split(":");
+    return Number(hour) * 60 + Number(minute);
+};
+
 export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
     shifts,
     weekStart,
@@ -60,7 +65,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                     <div className="bg-slate-50 dark:bg-slate-800 p-3 font-semibold text-sm text-slate-600 dark:text-slate-400">
                         시간
                     </div>
-                    {DAYS.map((day, index) => (
+                    {DAYS.map((day) => (
                         <div
                             key={day}
                             className="bg-slate-50 dark:bg-slate-800 p-3 text-center font-semibold text-sm text-slate-900 dark:text-white"
@@ -82,24 +87,53 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
                             </div>
                             {DAYS.map((_, dayIndex) => {
                                 const shift = getShiftForDayAndTime(dayIndex, time);
+                                const slotStartMinutes = parseMinutes(time);
+                                const slotEndMinutes = slotStartMinutes + 60;
+                                const shiftStartMinutes = shift
+                                    ? parseMinutes(shift.startTime)
+                                    : 0;
+                                const shiftEndMinutes = shift
+                                    ? parseMinutes(shift.endTime)
+                                    : 0;
+                                const isShiftStart =
+                                    !!shift && shiftStartMinutes === slotStartMinutes;
+                                const isShiftEnd =
+                                    !!shift && shiftEndMinutes <= slotEndMinutes;
+                                const isSingleSlotShift = isShiftStart && isShiftEnd;
                                 return (
                                     <div
                                         key={`${dayIndex}-${time}`}
                                         className="bg-white dark:bg-surface-dark p-2 min-h-[60px] relative"
                                     >
-                                        {shift && shift.startTime === time && (
+                                        {shift && (
                                             <div
                                                 className={cn(
-                                                    "absolute inset-1 rounded-md border-2 p-2 text-xs font-medium shadow-sm",
+                                                    "absolute left-1 right-1 border-2 text-xs font-medium shadow-sm",
+                                                    isSingleSlotShift &&
+                                                        "top-1 bottom-1 rounded-md p-2",
+                                                    !isSingleSlotShift &&
+                                                        isShiftStart &&
+                                                        "top-1 bottom-0 rounded-t-md rounded-b-none border-b-0 p-2",
+                                                    !isSingleSlotShift &&
+                                                        !isShiftStart &&
+                                                        !isShiftEnd &&
+                                                        "top-0 bottom-0 rounded-none border-y-0 p-0",
+                                                    !isSingleSlotShift &&
+                                                        isShiftEnd &&
+                                                        "top-0 bottom-1 rounded-b-md rounded-t-none border-t-0 p-0",
                                                     getShiftTypeColor(shift.type)
                                                 )}
                                             >
-                                                <div className="font-semibold truncate">
-                                                    {shift.employeeName}
-                                                </div>
-                                                <div className="text-[10px] opacity-80">
-                                                    {shift.startTime} - {shift.endTime}
-                                                </div>
+                                                {isShiftStart ? (
+                                                    <>
+                                                        <div className="font-semibold truncate">
+                                                            {shift.employeeName}
+                                                        </div>
+                                                        <div className="text-[10px] opacity-80">
+                                                            {shift.startTime} - {shift.endTime}
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                             </div>
                                         )}
                                     </div>

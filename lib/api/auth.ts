@@ -27,6 +27,37 @@ const getAccessToken = (data: any): string | undefined => {
     return undefined;
 };
 
+const getUserDisplayName = (data: unknown): string | undefined => {
+    if (!data || typeof data !== "object") {
+        return undefined;
+    }
+
+    const user = "user" in data ? data.user : undefined;
+    if (user && typeof user === "object") {
+        if (typeof user.name === "string" && user.name.trim()) {
+            return user.name.trim();
+        }
+        if (typeof user.userName === "string" && user.userName.trim()) {
+            return user.userName.trim();
+        }
+        if (typeof user.firstName === "string" && user.firstName.trim()) {
+            if (typeof user.lastName === "string" && user.lastName.trim()) {
+                return `${user.lastName.trim()}${user.firstName.trim()}`;
+            }
+            return user.firstName.trim();
+        }
+        if (typeof user.email === "string" && user.email.includes("@")) {
+            return user.email.split("@")[0];
+        }
+    }
+
+    if (typeof data.name === "string" && data.name.trim()) {
+        return data.name.trim();
+    }
+
+    return undefined;
+};
+
 export const authApi = {
     async login(
         credentials: LoginCredentials
@@ -43,8 +74,14 @@ export const authApi = {
             if (accessToken) {
                 apiClient.setToken(accessToken);
             }
-            if (payload?.refreshToken && typeof window !== "undefined") {
-                localStorage.setItem("refresh_token", payload.refreshToken);
+            if (typeof window !== "undefined") {
+                if (payload?.refreshToken) {
+                    localStorage.setItem("refresh_token", payload.refreshToken);
+                }
+                const displayName = getUserDisplayName(payload);
+                if (displayName) {
+                    localStorage.setItem("auth_user_name", displayName);
+                }
             }
         }
 
@@ -61,8 +98,14 @@ export const authApi = {
             if (accessToken) {
                 apiClient.setToken(accessToken);
             }
-            if (payload?.refreshToken && typeof window !== "undefined") {
-                localStorage.setItem("refresh_token", payload.refreshToken);
+            if (typeof window !== "undefined") {
+                if (payload?.refreshToken) {
+                    localStorage.setItem("refresh_token", payload.refreshToken);
+                }
+                const displayName = getUserDisplayName(payload);
+                if (displayName) {
+                    localStorage.setItem("auth_user_name", displayName);
+                }
             }
         }
 
@@ -73,6 +116,7 @@ export const authApi = {
         apiClient.clearToken();
         if (typeof window !== "undefined") {
             localStorage.removeItem("refresh_token");
+            localStorage.removeItem("auth_user_name");
         }
         // 서버에 로그아웃 요청 (선택사항)
         await apiClient.post("/auth/logout");

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -11,6 +12,8 @@ import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Employee, EmployeeStatus, Department } from "@/types/employee";
+import { userApi } from "@/lib/api/users";
+import { storeApi } from "@/lib/api/stores";
 
 const STORE_NAMES: Record<string, string> = {
     "1": "강남점",
@@ -19,48 +22,16 @@ const STORE_NAMES: Record<string, string> = {
     "4": "부산점",
 };
 
-const initialEmployees: Employee[] = [
-    {
-        id: "1",
-        firstName: "철수",
-        lastName: "김",
-        email: "kim@example.com",
-        role: "staff",
-        department: "kitchen",
-        hourlyWage: 12000,
-        status: "active",
-    },
-    {
-        id: "2",
-        firstName: "영희",
-        lastName: "이",
-        email: "lee@example.com",
-        role: "staff",
-        department: "front_of_house",
-        hourlyWage: 11000,
-        status: "active",
-    },
-    {
-        id: "3",
-        firstName: "민수",
-        lastName: "박",
-        email: "park@example.com",
-        role: "manager",
-        department: "management",
-        hourlyWage: 15000,
-        status: "active",
-    },
-    {
-        id: "4",
-        firstName: "지은",
-        lastName: "최",
-        email: "choi@example.com",
-        role: "staff",
-        department: "delivery",
-        hourlyWage: 10000,
-        status: "invited",
-    },
-];
+type StoreMemberListResDto = {
+    id: number;
+    userId: number;
+    userName: string;
+    userEmail: string;
+    role: string;
+    department: string;
+    hourlyWage: number;
+    status: string;
+};
 
 const getDepartmentLabel = (dept: Department): string => {
     const labels: Record<Department, string> = {
@@ -94,6 +65,177 @@ const getStatusLabel = (status: EmployeeStatus): string => {
     return labels[status];
 };
 
+const isStoreMemberListResDto = (value: unknown): value is StoreMemberListResDto => {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const candidate = value as Partial<StoreMemberListResDto>;
+    return (
+        typeof candidate.id === "number" &&
+        typeof candidate.userId === "number" &&
+        typeof candidate.userName === "string" &&
+        typeof candidate.userEmail === "string" &&
+        typeof candidate.role === "string" &&
+        typeof candidate.department === "string" &&
+        typeof candidate.hourlyWage === "number" &&
+        typeof candidate.status === "string"
+    );
+};
+
+const parseStoreMembers = (rawData: unknown): StoreMemberListResDto[] => {
+    if (Array.isArray(rawData)) {
+        return rawData.filter(isStoreMemberListResDto);
+    }
+
+    if (isApiEnvelope(rawData) && rawData.success && Array.isArray(rawData.data)) {
+        return rawData.data.filter(isStoreMemberListResDto);
+    }
+
+    return [];
+};
+
+type ApiResponse<T> = {
+    success: boolean;
+    data: T | null;
+    error?: {
+        code: string;
+        message: string;
+        details?: Record<string, unknown>;
+    } | null;
+};
+
+type UserInfoResDto = {
+    userId: number | null;
+    name: string;
+    email: string;
+};
+
+const isApiEnvelope = (value: unknown): value is ApiResponse<unknown> => {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    return typeof (value as { success?: unknown }).success === "boolean";
+};
+
+const isUserInfoResDto = (value: unknown): value is UserInfoResDto => {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const candidate = value as Partial<UserInfoResDto> & { id?: unknown };
+    const userIdValue = candidate.userId ?? candidate.id;
+    return (
+        (typeof userIdValue === "number" ||
+            typeof userIdValue === "string" ||
+            userIdValue === undefined ||
+            userIdValue === null) &&
+        typeof candidate.name === "string" &&
+        typeof candidate.email === "string"
+    );
+};
+
+const parseUserInfo = (rawData: unknown): UserInfoResDto | null => {
+    const normalize = (value: unknown): UserInfoResDto | null => {
+        if (!isUserInfoResDto(value)) {
+            return null;
+        }
+
+        const candidate = value as {
+            userId?: number | string | null;
+            id?: number | string | null;
+            name: string;
+            email: string;
+        };
+
+        const rawUserId = candidate.userId ?? candidate.id;
+        const parsedUserId = Number(rawUserId);
+        const userId =
+            Number.isFinite(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
+
+        return {
+            userId,
+            name: candidate.name,
+            email: candidate.email,
+        };
+    };
+
+    const direct = normalize(rawData);
+    if (direct) {
+        return direct;
+    }
+
+    if (isApiEnvelope(rawData) && rawData.success && rawData.data) {
+        return normalize(rawData.data);
+    }
+
+    return null;
+};
+
+const getErrorCode = (error: {
+    code: string;
+    details?: Record<string, unknown>;
+}): string => {
+    if (error.details && typeof error.details.code === "string") {
+        return error.details.code;
+    }
+
+    if (
+        error.details &&
+        typeof error.details.error === "object" &&
+        error.details.error !== null &&
+        "code" in error.details.error &&
+        typeof (error.details.error as { code?: unknown }).code === "string"
+    ) {
+        return (error.details.error as { code: string }).code;
+    }
+
+    return error.code;
+};
+
+const splitName = (name: string): { firstName: string; lastName: string } => {
+    const trimmed = name.trim();
+    if (trimmed.length <= 1) {
+        return { firstName: trimmed, lastName: "" };
+    }
+
+    return {
+        lastName: trimmed.slice(0, 1),
+        firstName: trimmed.slice(1),
+    };
+};
+
+const mapBackendRoleToEmployeeRole = (role: string): Employee["role"] => {
+    const normalized = role.toUpperCase();
+    if (normalized === "MANAGER") {
+        return "manager";
+    }
+    if (normalized === "OWNER" || normalized === "ADMIN") {
+        return "admin";
+    }
+    return "staff";
+};
+
+const mapBackendDepartmentToEmployeeDepartment = (
+    department: string
+): Department => {
+    const normalized = department.toUpperCase();
+    if (normalized === "KITCHEN") {
+        return "kitchen";
+    }
+    if (normalized === "HALL" || normalized === "FRONT_OF_HOUSE") {
+        return "front_of_house";
+    }
+    if (normalized === "DELIVERY") {
+        return "delivery";
+    }
+    if (normalized === "MANAGEMENT") {
+        return "management";
+    }
+    return "front_of_house";
+};
+
 export default function StaffManagementPage() {
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId") || "1";
@@ -102,33 +244,117 @@ export default function StaffManagementPage() {
         [storeId]
     );
 
-    const [employees, setEmployees] = useState<Employee[]>(initialEmployees);
+    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [isLoadingMembers, setIsLoadingMembers] = useState(true);
+    const [memberLoadError, setMemberLoadError] = useState<string | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [inviteStep, setInviteStep] = useState<"email" | "details" | "done">("email");
     const [email, setEmail] = useState("");
     const [verifiedEmail, setVerifiedEmail] = useState("");
+    const [verifiedUserInfo, setVerifiedUserInfo] = useState<UserInfoResDto | null>(null);
+    const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+    const [isCreatingMember, setIsCreatingMember] = useState(false);
     const [inviteError, setInviteError] = useState("");
     const [inviteDetails, setInviteDetails] = useState({
-        firstName: "",
-        lastName: "",
-        role: "staff" as Employee["role"],
-        department: "front_of_house" as Department,
+        name: "",
+        role: "STAFF",
+        memberRank: "",
+        department: "HALL",
         hourlyWage: "10000",
+        minHoursPerWeek: "20",
+        status: "INVITED",
+        pinCode: "",
     });
     const [searchQuery, setSearchQuery] = useState("");
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchMembers = async () => {
+            setIsLoadingMembers(true);
+            setMemberLoadError(null);
+
+            if (!/^\d+$/.test(storeId)) {
+                setMemberLoadError("유효하지 않은 매장 ID입니다.");
+                setIsLoadingMembers(false);
+                return;
+            }
+
+            const response = await storeApi.getStoreMembers(storeId);
+            if (!response.success) {
+                const code = response.error ? getErrorCode(response.error) : "";
+                if (code === "STORE_NOT_FOUND") {
+                    setMemberLoadError("매장을 찾을 수 없습니다.");
+                } else if (code === "STORE_MEMBER_ACCESS_DENIED" || code === "403") {
+                    setMemberLoadError("직원 조회 권한이 없습니다.");
+                } else if (code === "INVALID_REQUEST" || code === "400") {
+                    setMemberLoadError("요청 값이 올바르지 않습니다.");
+                } else {
+                    setMemberLoadError(
+                        response.error?.message ?? "직원 목록을 불러오지 못했습니다."
+                    );
+                }
+                setIsLoadingMembers(false);
+                return;
+            }
+
+            const members = parseStoreMembers(response.data as unknown);
+            const mappedEmployees: Employee[] = members.map((member) => {
+                const name = member.userName.trim();
+                const splitAt = name.length > 1 ? 1 : 0;
+                const lastName = splitAt > 0 ? name.slice(0, splitAt) : "";
+                const firstName = splitAt > 0 ? name.slice(splitAt) : name;
+
+                return {
+                    id: String(member.id),
+                    firstName,
+                    lastName,
+                    email: member.userEmail,
+                    role: mapBackendRoleToEmployeeRole(member.role),
+                    department: mapBackendDepartmentToEmployeeDepartment(
+                        member.department
+                    ),
+                    hourlyWage: member.hourlyWage,
+                    status:
+                        member.status.toUpperCase() === "ACTIVE"
+                            ? "active"
+                            : member.status.toUpperCase() === "INACTIVE"
+                              ? "inactive"
+                              : "invited",
+                };
+            });
+
+            if (!cancelled) {
+                setEmployees(mappedEmployees);
+                setIsLoadingMembers(false);
+            }
+        };
+
+        void fetchMembers();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [storeId]);
 
     const openInviteModal = () => {
         setIsInviteModalOpen(true);
         setInviteStep("email");
         setEmail("");
         setVerifiedEmail("");
+        setVerifiedUserInfo(null);
+        setIsVerifyingEmail(false);
+        setIsCreatingMember(false);
         setInviteError("");
         setInviteDetails({
-            firstName: "",
-            lastName: "",
-            role: "staff",
-            department: "front_of_house",
+            name: "",
+            role: "STAFF",
+            memberRank: "",
+            department: "HALL",
             hourlyWage: "10000",
+            minHoursPerWeek: "20",
+            status: "INVITED",
+            pinCode: "",
         });
     };
 
@@ -138,25 +364,90 @@ export default function StaffManagementPage() {
 
     const isEmailFormatValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    const handleVerifyEmail = () => {
+    const handleVerifyEmail = async () => {
         if (!isEmailFormatValid) {
             setInviteError("유효한 이메일 형식을 입력해주세요.");
             return;
         }
+
         if (employees.some((emp) => emp.email.toLowerCase() === email.toLowerCase())) {
             setInviteError("이미 등록된 이메일입니다.");
             return;
         }
+
+        const token = localStorage.getItem("auth_token");
+        if (!token) {
+            setInviteError("로그인이 필요합니다. 다시 로그인 후 시도해 주세요.");
+            return;
+        }
+
         setInviteError("");
-        setVerifiedEmail(email.trim());
+        setIsVerifyingEmail(true);
+
+        const normalizedEmail = email.trim();
+        const response = await userApi.getUserInfoByEmail(normalizedEmail);
+
+        if (!response.success) {
+            const code = response.error ? getErrorCode(response.error) : "";
+            if (code === "STORE_MEMBER_ACCESS_DENIED" || code === "403") {
+                setInviteError("매장 멤버 관리 권한이 없습니다.");
+            } else if (code === "MEMBER_NOT_FOUND" || code === "404") {
+                setInviteError("해당 이메일의 사용자를 찾을 수 없습니다.");
+            } else if (code === "INVALID_REQUEST" || code === "400") {
+                setInviteError("이메일 값을 확인해 주세요.");
+            } else {
+                setInviteError(
+                    response.error?.message ?? "사용자 정보 조회 중 오류가 발생했습니다."
+                );
+            }
+            setVerifiedUserInfo(null);
+            setIsVerifyingEmail(false);
+            return;
+        }
+
+        const userInfo = parseUserInfo(response.data as unknown);
+        if (!userInfo) {
+            setInviteError("사용자 정보 응답 형식이 올바르지 않습니다.");
+            setVerifiedUserInfo(null);
+            setIsVerifyingEmail(false);
+            return;
+        }
+
+        setVerifiedEmail(userInfo.email);
+        setVerifiedUserInfo(userInfo);
+        setInviteDetails((prev) => ({
+            ...prev,
+            name: userInfo.name,
+        }));
+        if (!userInfo.userId) {
+            setInviteError(
+                "사용자는 조회됐지만 userId가 응답에 없습니다. 담당자에게 API 응답에 userId 포함을 요청해 주세요."
+            );
+        }
+        setIsVerifyingEmail(false);
+    };
+
+    const handleGoToDetailsStep = () => {
+        if (!verifiedUserInfo || !verifiedUserInfo.userId) {
+            setInviteError("먼저 이메일 검증을 진행해 주세요.");
+            return;
+        }
+
+        setInviteError("");
         setInviteStep("details");
     };
 
     const handleCreateEmployee = () => {
-        if (!inviteDetails.firstName || !inviteDetails.lastName) {
-            setInviteError("이름과 성은 필수 입력입니다.");
+        if (!inviteDetails.name.trim()) {
+            setInviteError("이름 정보가 없습니다. 이메일 검증을 다시 진행해 주세요.");
             return;
         }
+
+        if (!verifiedUserInfo || !verifiedUserInfo.userId) {
+            setInviteError("검증된 사용자 정보(userId)가 없습니다. 이메일 검증을 다시 진행해 주세요.");
+            return;
+        }
+        const userId = verifiedUserInfo.userId;
 
         const wage = Number(inviteDetails.hourlyWage);
         if (!Number.isFinite(wage) || wage <= 0) {
@@ -164,21 +455,102 @@ export default function StaffManagementPage() {
             return;
         }
 
-        const newEmployee: Employee = {
-            id: `invited-${Date.now()}`,
-            firstName: inviteDetails.firstName.trim(),
-            lastName: inviteDetails.lastName.trim(),
+        const minHoursPerWeek = Number(inviteDetails.minHoursPerWeek);
+        if (!Number.isFinite(minHoursPerWeek) || minHoursPerWeek < 0) {
+            setInviteError("최소 주간 근무시간은 0 이상의 숫자여야 합니다.");
+            return;
+        }
+
+        if (inviteDetails.pinCode && !/^\d{4,6}$/.test(inviteDetails.pinCode)) {
+            setInviteError("PIN 코드는 4~6자리 숫자여야 합니다.");
+            return;
+        }
+
+        const parsedName = splitName(inviteDetails.name);
+
+        const payload: {
+            email: string;
+            role: string;
+            department: string;
+            minHoursPerWeek: number;
+            memberRank?: string;
+            hourlyWage?: number;
+            status?: string;
+            pinCode?: string;
+        } = {
             email: verifiedEmail,
             role: inviteDetails.role,
             department: inviteDetails.department,
-            hourlyWage: wage,
-            status: "invited",
+            minHoursPerWeek,
         };
 
-        setEmployees((prev) => [newEmployee, ...prev]);
-        setInviteError("");
-        setInviteStep("done");
-        console.log("Create employee:", newEmployee);
+        if (inviteDetails.memberRank.trim()) {
+            payload.memberRank = inviteDetails.memberRank.trim();
+        }
+        if (Number.isFinite(wage)) {
+            payload.hourlyWage = wage;
+        }
+        if (inviteDetails.status.trim()) {
+            payload.status = inviteDetails.status.trim();
+        }
+        if (inviteDetails.pinCode.trim()) {
+            payload.pinCode = inviteDetails.pinCode.trim();
+        }
+
+        const createMember = async () => {
+            if (!/^\d+$/.test(storeId)) {
+                setInviteError("유효하지 않은 매장 ID입니다.");
+                return;
+            }
+
+            setIsCreatingMember(true);
+
+            const response = await storeApi.createStoreMember(
+                storeId,
+                userId,
+                payload
+            );
+            if (!response.success) {
+                const code = response.error ? getErrorCode(response.error) : "";
+                if (code === "STORE_ACCESS_DENIED" || code === "403") {
+                    setInviteError("직원 생성 권한이 없습니다.");
+                } else if (code === "STORE_NOT_FOUND") {
+                    setInviteError("매장을 찾을 수 없습니다.");
+                } else if (code === "MEMBER_NOT_FOUND") {
+                    setInviteError("이메일에 해당하는 사용자를 찾을 수 없습니다.");
+                } else if (code === "STORE_MEMBER_ALREADY_EXISTS" || code === "409") {
+                    setInviteError("이미 해당 매장에 등록된 멤버입니다.");
+                } else if (code === "INVALID_REQUEST" || code === "400") {
+                    setInviteError("입력 값을 확인해 주세요.");
+                } else {
+                    setInviteError(
+                        response.error?.message ?? "직원 생성 중 오류가 발생했습니다."
+                    );
+                }
+                setIsCreatingMember(false);
+                return;
+            }
+
+            const newEmployee: Employee = {
+                id: `member-${Date.now()}`,
+                firstName: parsedName.firstName,
+                lastName: parsedName.lastName,
+                email: verifiedEmail,
+                role: mapBackendRoleToEmployeeRole(inviteDetails.role),
+                department: mapBackendDepartmentToEmployeeDepartment(
+                    inviteDetails.department
+                ),
+                hourlyWage: wage,
+                status: inviteDetails.status === "ACTIVE" ? "active" : "invited",
+            };
+
+            setEmployees((prev) => [newEmployee, ...prev]);
+            setInviteError("");
+            setInviteStep("done");
+            setIsCreatingMember(false);
+        };
+
+        void createMember();
     };
 
     const filteredEmployees = employees.filter(
@@ -194,8 +566,8 @@ export default function StaffManagementPage() {
             header: "이름",
             render: (emp: Employee) => (
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-                        {emp.lastName[0]}
+                                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
+                        {(emp.lastName || emp.firstName || "?")[0]}
                     </div>
                     <div>
                         <p className="font-medium">
@@ -237,10 +609,16 @@ export default function StaffManagementPage() {
         {
             key: "actions",
             header: "",
-            render: () => (
-                <Button variant="ghost" size="sm">
-                    <span className="material-icons text-sm">more_vert</span>
-                </Button>
+            render: (emp: Employee) => (
+                <Link
+                    href={`/store/staff/preferences?storeId=${storeId}&memberId=${emp.id}&employeeName=${encodeURIComponent(
+                        `${emp.lastName}${emp.firstName}`
+                    )}`}
+                >
+                    <Button variant="ghost" size="sm">
+                        <span className="material-icons text-sm">tune</span>
+                    </Button>
+                </Link>
             ),
         },
     ];
@@ -363,7 +741,21 @@ export default function StaffManagementPage() {
                         </Card>
 
                         <Card>
-                            <Table data={filteredEmployees} columns={columns} />
+                            {isLoadingMembers && (
+                                <CardBody className="py-8 text-center text-slate-500 dark:text-slate-400">
+                                    직원 목록을 불러오는 중입니다...
+                                </CardBody>
+                            )}
+
+                            {!isLoadingMembers && memberLoadError && (
+                                <CardBody className="py-8 text-center text-red-600 dark:text-red-400">
+                                    {memberLoadError}
+                                </CardBody>
+                            )}
+
+                            {!isLoadingMembers && !memberLoadError && (
+                                <Table data={filteredEmployees} columns={columns} />
+                            )}
                         </Card>
                     </div>
                 </main>
@@ -417,10 +809,24 @@ export default function StaffManagementPage() {
                                 value={email}
                                 onChange={(e) => {
                                     setEmail(e.target.value);
+                                    setVerifiedUserInfo(null);
                                     setInviteError("");
                                 }}
                                 placeholder="name@example.com"
                             />
+                            {verifiedUserInfo && (
+                                <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-3 space-y-1">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        조회된 사용자
+                                    </p>
+                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                                        {verifiedUserInfo.name}
+                                    </p>
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                                        {verifiedUserInfo.email}
+                                    </p>
+                                </div>
+                            )}
                             {inviteError && (
                                 <p className="text-sm text-red-500">{inviteError}</p>
                             )}
@@ -429,10 +835,16 @@ export default function StaffManagementPage() {
                                     취소
                                 </Button>
                                 <Button
-                                    onClick={handleVerifyEmail}
-                                    disabled={!isEmailFormatValid}
+                                    onClick={() => void handleVerifyEmail()}
+                                    disabled={!isEmailFormatValid || isVerifyingEmail}
                                 >
-                                    이메일 검증
+                                    {isVerifyingEmail ? "검증 중..." : "이메일 검증"}
+                                </Button>
+                                <Button
+                                    onClick={handleGoToDetailsStep}
+                                    disabled={!verifiedUserInfo || !verifiedUserInfo.userId}
+                                >
+                                    다음 단계
                                 </Button>
                             </div>
                         </>
@@ -447,30 +859,13 @@ export default function StaffManagementPage() {
                                 </span>
                             </p>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <Input
-                                    label="성"
-                                    value={inviteDetails.lastName}
-                                    onChange={(e) =>
-                                        setInviteDetails((prev) => ({
-                                            ...prev,
-                                            lastName: e.target.value,
-                                        }))
-                                    }
-                                    placeholder="김"
-                                />
-                                <Input
-                                    label="이름"
-                                    value={inviteDetails.firstName}
-                                    onChange={(e) =>
-                                        setInviteDetails((prev) => ({
-                                            ...prev,
-                                            firstName: e.target.value,
-                                        }))
-                                    }
-                                    placeholder="철수"
-                                />
-                            </div>
+                            <Input
+                                label="이름"
+                                value={inviteDetails.name}
+                                disabled
+                                onChange={() => {}}
+                                placeholder="이름"
+                            />
 
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -482,14 +877,13 @@ export default function StaffManagementPage() {
                                         onChange={(e) =>
                                             setInviteDetails((prev) => ({
                                                 ...prev,
-                                                role: e.target.value as Employee["role"],
+                                                role: e.target.value,
                                             }))
                                         }
                                         className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm"
                                     >
-                                        <option value="staff">직원</option>
-                                        <option value="manager">관리자</option>
-                                        <option value="admin">어드민</option>
+                                        <option value="STAFF">직원</option>
+                                        <option value="MANAGER">관리자</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2">
@@ -501,31 +895,96 @@ export default function StaffManagementPage() {
                                         onChange={(e) =>
                                             setInviteDetails((prev) => ({
                                                 ...prev,
-                                                department: e.target.value as Department,
+                                                department: e.target.value,
                                             }))
                                         }
                                         className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm"
                                     >
-                                        <option value="front_of_house">홀</option>
-                                        <option value="kitchen">주방</option>
-                                        <option value="delivery">배달</option>
-                                        <option value="management">관리</option>
+                                        <option value="HALL">홀</option>
+                                        <option value="KITCHEN">주방</option>
                                     </select>
                                 </div>
                             </div>
 
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        멤버 등급 (선택)
+                                    </label>
+                                    <select
+                                        value={inviteDetails.memberRank}
+                                        onChange={(e) =>
+                                            setInviteDetails((prev) => ({
+                                                ...prev,
+                                                memberRank: e.target.value,
+                                            }))
+                                        }
+                                        className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm"
+                                    >
+                                        <option value="">선택 안 함</option>
+                                        <option value="MANAGER">MANAGER</option>
+                                        <option value="STAFF">STAFF</option>
+                                        <option value="PART_TIME">PART_TIME</option>
+                                    </select>
+                                </div>
+                                <Input
+                                    label="주간 최소 근무시간"
+                                    type="number"
+                                    min="0"
+                                    value={inviteDetails.minHoursPerWeek}
+                                    onChange={(e) =>
+                                        setInviteDetails((prev) => ({
+                                            ...prev,
+                                            minHoursPerWeek: e.target.value,
+                                        }))
+                                    }
+                                    placeholder="20"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <Input
+                                    label="시급 (원)"
+                                    type="number"
+                                    min="1"
+                                    value={inviteDetails.hourlyWage}
+                                    onChange={(e) =>
+                                        setInviteDetails((prev) => ({
+                                            ...prev,
+                                            hourlyWage: e.target.value,
+                                        }))
+                                    }
+                                    placeholder="10000"
+                                />
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                                        상태 (선택)
+                                    </label>
+                                    <select
+                                        value={inviteDetails.status}
+                                        onChange={(e) =>
+                                            setInviteDetails((prev) => ({
+                                                ...prev,
+                                                status: e.target.value,
+                                            }))
+                                        }
+                                        className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm"
+                                    >
+                                        <option value="INVITED">INVITED</option>
+                                        <option value="ACTIVE">ACTIVE</option>
+                                    </select>
+                                </div>
+                            </div>
                             <Input
-                                label="시급 (원)"
-                                type="number"
-                                min="1"
-                                value={inviteDetails.hourlyWage}
+                                label="PIN 코드 (선택, 4~6자리 숫자)"
+                                value={inviteDetails.pinCode}
                                 onChange={(e) =>
                                     setInviteDetails((prev) => ({
                                         ...prev,
-                                        hourlyWage: e.target.value,
+                                        pinCode: e.target.value,
                                     }))
                                 }
-                                placeholder="10000"
+                                placeholder="1234"
                             />
 
                             {inviteError && (
@@ -542,8 +1001,11 @@ export default function StaffManagementPage() {
                                 >
                                     이전
                                 </Button>
-                                <Button onClick={handleCreateEmployee}>
-                                    직원 생성 완료
+                                <Button
+                                    onClick={handleCreateEmployee}
+                                    disabled={isCreatingMember}
+                                >
+                                    {isCreatingMember ? "생성 중..." : "직원 생성 완료"}
                                 </Button>
                             </div>
                         </>
