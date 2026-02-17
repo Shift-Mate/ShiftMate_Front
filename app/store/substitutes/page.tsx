@@ -1,489 +1,659 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Badge, BadgeProps } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { SubstituteRequest } from "@/types/schedule";
+import { substituteApi } from "@/lib/api/substitutes";
+import { scheduleApi, UserScheduleRes } from "@/lib/api/schedules";
+import { authApi } from "@/lib/api/auth";
+import {
+  SubstituteRequestRes,
+  MySubstituteApplicationRes,
+} from "@/types/substitute";
+import { storeApi } from "@/lib/api/stores";
 
-const STORE_NAMES: Record<string, string> = {
-    "1": "강남점",
-    "2": "홍대점",
-    "3": "판교점",
-    "4": "부산점",
+type TabKey = "others" | "my-requests" | "my-applications";
+
+const getStatusVariant = (status: string): BadgeProps["variant"] => {
+  switch (status) {
+    case "OPEN":
+      return "info";
+    case "PENDING":
+    case "WAITING":
+      return "warning";
+    case "APPROVED":
+    case "SELECTED":
+      return "success";
+    case "REJECTED":
+    case "MANAGER_CANCELED":
+      return "error";
+    default:
+      return "default";
+  }
 };
 
-const openRequests: SubstituteRequest[] = [
-    {
-        id: "open-1",
-        shiftId: "shift1",
-        requesterId: "emp1",
-        requesterName: "김철수",
-        date: "2024-02-15",
-        shiftTime: "09:00 - 17:00",
-        reason: "개인 사정으로 대타가 필요합니다.",
-        status: "pending",
-        createdAt: "2024-02-10T10:00:00Z",
-    },
-    {
-        id: "open-2",
-        shiftId: "shift2",
-        requesterId: "emp2",
-        requesterName: "이영희",
-        date: "2024-02-16",
-        shiftTime: "13:00 - 21:00",
-        reason: "가족 행사 참석",
-        status: "pending",
-        createdAt: "2024-02-09T14:30:00Z",
-    },
-    {
-        id: "open-3",
-        shiftId: "shift3",
-        requesterId: "emp3",
-        requesterName: "박민수",
-        date: "2024-02-17",
-        shiftTime: "10:00 - 18:00",
-        reason: "병원 진료 일정",
-        status: "pending",
-        createdAt: "2024-02-11T09:15:00Z",
-    },
-];
-
-const initialMyRequestHistory: SubstituteRequest[] = [
-    {
-        id: "my-1",
-        shiftId: "my-shift1",
-        requesterId: "me",
-        requesterName: "나",
-        date: "2024-02-12",
-        shiftTime: "09:00 - 17:00",
-        reason: "학사 일정 충돌",
-        status: "pending",
-        createdAt: "2024-02-08T08:20:00Z",
-    },
-    {
-        id: "my-2",
-        shiftId: "my-shift2",
-        requesterId: "me",
-        requesterName: "나",
-        date: "2024-02-08",
-        shiftTime: "13:00 - 21:00",
-        reason: "개인 일정",
-        status: "approved",
-        createdAt: "2024-02-05T11:40:00Z",
-    },
-    {
-        id: "my-3",
-        shiftId: "my-shift3",
-        requesterId: "me",
-        requesterName: "나",
-        date: "2024-02-04",
-        shiftTime: "10:00 - 18:00",
-        reason: "컨디션 난조",
-        status: "rejected",
-        createdAt: "2024-02-02T16:10:00Z",
-    },
-];
-
-const plannedShifts = [
-    {
-        id: "planned-1",
-        date: "2024-02-18",
-        label: "Feb 18 • 오픈 시프트 (08:00 - 14:00)",
-        time: "08:00 - 14:00",
-    },
-    {
-        id: "planned-2",
-        date: "2024-02-19",
-        label: "Feb 19 • 미들 시프트 (12:00 - 18:00)",
-        time: "12:00 - 18:00",
-    },
-    {
-        id: "planned-3",
-        date: "2024-02-22",
-        label: "Feb 22 • 마감 시프트 (16:00 - 22:00)",
-        time: "16:00 - 22:00",
-    },
-];
-
-type TabKey = "open" | "my" | "others";
-
-const getStatusChip = (status: SubstituteRequest["status"]) => {
-    if (status === "approved" || status === "filled") {
-        return "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300";
-    }
-    if (status === "rejected") {
-        return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300";
-    }
-    return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300";
+const getStatusLabel = (status: string): string => {
+  const labels: Record<string, string> = {
+    OPEN: "모집중",
+    PENDING: "승인대기",
+    APPROVED: "승인완료",
+    REQUESTER_CANCELED: "요청취소",
+    MANAGER_CANCELED: "관리자취소",
+    WAITING: "결과대기",
+    SELECTED: "선발됨",
+    REJECTED: "거절됨",
+    CANCELED: "지원취소",
+  };
+  return labels[status] || status;
 };
 
-const getStatusLabel = (status: SubstituteRequest["status"]) => {
-    if (status === "approved") return "승인됨";
-    if (status === "filled") return "매칭 완료";
-    if (status === "rejected") return "반려";
-    return "대기 중";
-};
+// --- 필터 옵션 정의 ---
+const SORT_OPTIONS = [
+  { label: "최신순", value: "latest" },
+  { label: "오래된순", value: "oldest" },
+];
+
+const REQUEST_STATUS_OPTIONS = [
+  { label: "전체 상태", value: "ALL" },
+  { label: "모집중", value: "OPEN" },
+  { label: "승인대기", value: "PENDING" },
+  { label: "승인완료", value: "APPROVED" },
+  { label: "요청취소", value: "REQUESTER_CANCELED" },
+  { label: "관리자취소", value: "MANAGER_CANCELED" },
+];
+
+const APPLICATION_STATUS_OPTIONS = [
+  { label: "전체 상태", value: "ALL" },
+  { label: "결과대기", value: "WAITING" },
+  { label: "선발됨", value: "SELECTED" },
+  { label: "거절됨", value: "REJECTED" },
+  { label: "지원취소", value: "CANCELED" },
+];
 
 export default function SubstitutesPage() {
-    const searchParams = useSearchParams();
-    const storeId = searchParams.get("storeId") || "1";
-    const storeName = useMemo(
-        () => STORE_NAMES[storeId] || `매장 ${storeId}`,
-        [storeId]
-    );
+  const searchParams = useSearchParams();
+  const storeId = searchParams.get("storeId") || "1";
+  const [storeName, setStoreName] = useState("");
 
-    const [activeTab, setActiveTab] = useState<TabKey>("open");
-    const [acceptedRequestIds, setAcceptedRequestIds] = useState<string[]>([]);
-    const [myRequests, setMyRequests] = useState<SubstituteRequest[]>(initialMyRequestHistory);
-    const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-    const [selectedShiftId, setSelectedShiftId] = useState(plannedShifts[0]?.id || "");
-    const [requestReason, setRequestReason] = useState("");
-    const [isUrgent, setIsUrgent] = useState(false);
+  // UI States
+  const [activeTab, setActiveTab] = useState<TabKey>("others");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const openRequestModal = () => {
-        setIsRequestModalOpen(true);
+  // 필터 및 정렬 상태
+  const [sortOrder, setSortOrder] = useState("latest");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+
+  // Data States
+  const [otherRequests, setOtherRequests] = useState<SubstituteRequestRes[]>(
+    [],
+  );
+  const [myRequests, setMyRequests] = useState<SubstituteRequestRes[]>([]);
+  const [myApplications, setMyApplications] = useState<
+    MySubstituteApplicationRes[]
+  >([]);
+
+  // 로그인한 사용자 ID
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+
+  // Modal Form States
+  const [myShifts, setMyShifts] = useState<UserScheduleRes[]>([]);
+  const [selectedShiftId, setSelectedShiftId] = useState<string>("");
+  const [requestReason, setRequestReason] = useState("");
+
+  // --- 1. 매장 정보 불러오기 ---
+  useEffect(() => {
+    const fetchStoreInfo = async () => {
+      if (!storeId) return;
+      try {
+        const res = await storeApi.getStore(storeId);
+        if (res.success && res.data) {
+          const rawData = res.data as any;
+          if (rawData.data && rawData.data.name) {
+            setStoreName(rawData.data.name);
+          } else if (rawData.name) {
+            setStoreName(rawData.name);
+          } else {
+            setStoreName(`매장 ${storeId}`);
+          }
+        } else {
+          setStoreName(`매장 ${storeId}`);
+        }
+      } catch (error) {
+        console.error("Failed to fetch store info:", error);
+        setStoreName(`매장 ${storeId}`);
+      }
     };
+    fetchStoreInfo();
+  }, [storeId]);
 
-    const closeRequestModal = () => {
-        setIsRequestModalOpen(false);
-        setSelectedShiftId(plannedShifts[0]?.id || "");
+  // --- 2. 초기 사용자 정보 로드 ---
+  useEffect(() => {
+    const initUser = async () => {
+      try {
+        const res = await authApi.getCurrentUser();
+        if (res.success && res.data) {
+          setCurrentUserId((res.data as any).id);
+        }
+      } catch (e) {
+        console.error("Failed to load user", e);
+      }
+    };
+    initUser();
+  }, []);
+
+  // --- 3. 데이터 Fetching (정렬/필터 적용) ---
+  const fetchData = async () => {
+    if (!storeId) return;
+    setIsLoading(true);
+    try {
+      if (activeTab === "others") {
+        const res = await substituteApi.getOtherRequests(
+          storeId,
+          sortOrder,
+          filterStatus,
+        );
+        if (res.success && res.data) {
+          setOtherRequests(res.data);
+        }
+      } else if (activeTab === "my-requests") {
+        const res = await substituteApi.getMyRequests(
+          storeId,
+          sortOrder,
+          filterStatus,
+        );
+        if (res.success && res.data) setMyRequests(res.data);
+      } else if (activeTab === "my-applications") {
+        const res = await substituteApi.getMyApplications(
+          storeId,
+          sortOrder,
+          filterStatus,
+        );
+        if (res.success && res.data) setMyApplications(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, activeTab, sortOrder, filterStatus]);
+
+  // 탭 변경 시 필터 초기화
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    setSortOrder("latest");
+    setFilterStatus("ALL");
+  };
+
+  // --- Handlers ---
+  const handleApply = async (requestId: number) => {
+    if (!confirm("이 대타 요청에 지원하시겠습니까?")) return;
+    try {
+      const res = await substituteApi.applySubstitute(storeId, requestId);
+      if (res.success) {
+        alert("지원되었습니다. '지원 내역' 탭에서 확인하세요.");
+        fetchData();
+      } else {
+        alert(res.error?.message || "지원 실패");
+      }
+    } catch (e: any) {
+      const msg = e.response?.data?.message || "오류가 발생했습니다.";
+      alert(msg);
+    }
+  };
+
+  const handleCancelRequest = async (requestId: number) => {
+    if (!confirm("요청을 취소하시겠습니까?")) return;
+    try {
+      const res = await substituteApi.cancelRequest(storeId, requestId);
+      if (res.success) {
+        alert("요청이 취소되었습니다.");
+        fetchData();
+      } else {
+        alert(res.error?.message || "취소 실패");
+      }
+    } catch (e) {
+      alert("오류가 발생했습니다.");
+    }
+  };
+
+  const handleCancelApplication = async (applicationId: number) => {
+    if (!confirm("지원을 취소하시겠습니까?")) return;
+    try {
+      const res = await substituteApi.cancelApplication(storeId, applicationId);
+      if (res.success) {
+        alert("지원이 취소되었습니다.");
+        fetchData();
+      } else {
+        alert(res.error?.message || "취소 실패");
+      }
+    } catch (e) {
+      alert("오류가 발생했습니다.");
+    }
+  };
+
+  // 4. 모달 열기
+  const openCreateModal = async () => {
+    setIsModalOpen(true);
+    setMyShifts([]);
+    setSelectedShiftId("");
+    setRequestReason("");
+
+    let targetUserId: number | null = currentUserId;
+
+    if (!targetUserId) {
+      try {
+        const userRes = await authApi.getCurrentUser();
+        if (userRes.success && userRes.data) {
+          targetUserId = (userRes.data as any).id;
+          setCurrentUserId(targetUserId);
+        } else {
+          alert("로그인 정보를 확인할 수 없습니다.");
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+        return;
+      }
+    }
+
+    if (!targetUserId) return;
+
+    try {
+      const res = await scheduleApi.getUserSchedules(
+        storeId,
+        targetUserId as number,
+      );
+
+      if (res.success && res.data) {
+        const rawShifts = res.data as any[];
+        const now = new Date();
+
+        const validShifts = rawShifts
+          .map((item) => ({
+            id: item.shiftAssignmentId || item.id,
+            date: item.workDate || item.date,
+            startTime: item.startTime,
+            endTime: item.endTime,
+            role: item.templateName || item.role,
+          }))
+          .filter((shift) => {
+            if (!shift.date || !shift.endTime) return false;
+            const shiftEnd = new Date(`${shift.date}T${shift.endTime}`);
+            return shiftEnd > now;
+          });
+
+        validShifts.sort(
+          (a, b) =>
+            new Date(`${a.date}T${a.startTime}`).getTime() -
+            new Date(`${b.date}T${b.startTime}`).getTime(),
+        );
+
+        setMyShifts(validShifts as UserScheduleRes[]);
+
+        if (validShifts.length > 0) {
+          setSelectedShiftId(String(validShifts[0].id));
+        }
+      }
+    } catch (e) {
+      console.error("스케줄 로딩 실패", e);
+    }
+  };
+
+  // 5. 대타 요청 등록
+  const handleSubmitRequest = async () => {
+    if (!selectedShiftId) return;
+    try {
+      const res = await substituteApi.createRequest(storeId, {
+        shiftAssignmentId: Number(selectedShiftId),
+        reason: requestReason,
+      });
+
+      if (res.success) {
+        alert("대타 요청이 등록되었습니다.");
+        setIsModalOpen(false);
+        setActiveTab("my-requests");
+        setSortOrder("latest");
+        setFilterStatus("ALL");
         setRequestReason("");
-        setIsUrgent(false);
-    };
+        fetchData();
+      } else {
+        alert(res.error?.message || "등록 실패");
+      }
+    } catch (e: any) {
+      const msg = e.response?.data?.message || "오류가 발생했습니다.";
+      alert(msg);
+    }
+  };
 
-    const handleApplySubstitute = (requestId: string) => {
-        console.log("Apply substitute:", requestId);
-    };
+  return (
+    <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
+      <StoreSidebar />
 
-    const handleCancelMyRequest = (requestId: string) => {
-        console.log("Cancel my request:", requestId);
-        setMyRequests((prev) =>
-            prev.map((request) =>
-                request.id === requestId ? { ...request, status: "rejected" } : request
-            )
-        );
-    };
+      <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
+        <MainHeader />
 
-    const handleAcceptOtherRequest = (requestId: string) => {
-        console.log("Accept other request:", requestId);
-        setAcceptedRequestIds((prev) =>
-            prev.includes(requestId) ? prev : [...prev, requestId]
-        );
-    };
-
-    const handleSubmitSubstituteRequest = () => {
-        const selectedShift = plannedShifts.find((shift) => shift.id === selectedShiftId);
-        if (!selectedShift) return;
-
-        const newRequest: SubstituteRequest = {
-            id: `my-${Date.now()}`,
-            shiftId: selectedShift.id,
-            requesterId: "me",
-            requesterName: "나",
-            date: selectedShift.date,
-            shiftTime: selectedShift.time,
-            reason: requestReason || undefined,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-        };
-
-        setMyRequests((prev) => [newRequest, ...prev]);
-        setActiveTab("my");
-        console.log("Create substitute request:", { ...newRequest, urgent: isUrgent });
-        closeRequestModal();
-    };
-
-    return (
-        <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-            <StoreSidebar />
-
-            <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
-                <MainHeader />
-
-                <main className="flex-1 overflow-y-auto p-6">
-                    <div className="max-w-6xl mx-auto space-y-6">
-                        <div className="md:flex md:items-center md:justify-between">
-                            <div className="flex-1 min-w-0">
-                                <h2 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white sm:text-3xl sm:truncate">
-                                    {storeName} 대타 관리
-                                </h2>
-                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    대기 중인 대타 요청을 확인하고, 내가 요청한 근무 기록을 조회하세요.
-                                </p>
-                            </div>
-                            <div className="mt-4 flex md:mt-0 md:ml-4">
-                                <Button className="gap-2" onClick={openRequestModal}>
-                                    <span className="material-icons text-sm">add</span>
-                                    대타 요청 등록
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="border-b border-slate-200 dark:border-slate-700">
-                            <nav className="-mb-px flex gap-8">
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab("open")}
-                                    className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-                                        activeTab === "open"
-                                            ? "border-primary text-primary"
-                                            : "border-transparent text-slate-500 hover:text-primary"
-                                    }`}
-                                >
-                                    대기 중 요청
-                                    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                        {openRequests.length}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab("my")}
-                                    className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-                                        activeTab === "my"
-                                            ? "border-primary text-primary"
-                                            : "border-transparent text-slate-500 hover:text-primary"
-                                    }`}
-                                >
-                                    내 요청 근무 기록
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab("others")}
-                                    className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-                                        activeTab === "others"
-                                            ? "border-primary text-primary"
-                                            : "border-transparent text-slate-500 hover:text-primary"
-                                    }`}
-                                >
-                                    다른 직원 요청
-                                </button>
-                            </nav>
-                        </div>
-
-                        {activeTab === "open" && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                {openRequests.map((request) => (
-                                    <Card key={request.id} className="h-full">
-                                        <CardBody className="flex flex-col h-full">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div>
-                                                    <p className="font-semibold text-slate-900 dark:text-white">
-                                                        {request.requesterName}
-                                                    </p>
-                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                        등록{" "}
-                                                        {new Date(request.createdAt).toLocaleDateString(
-                                                            "ko-KR"
-                                                        )}
-                                                    </p>
-                                                </div>
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300">
-                                                    대기 중
-                                                </span>
-                                            </div>
-
-                                            <div className="mt-4 space-y-2 text-sm">
-                                                <p className="text-slate-900 dark:text-white font-medium">
-                                                    {request.date}
-                                                </p>
-                                                <p className="text-slate-600 dark:text-slate-300">
-                                                    {request.shiftTime}
-                                                </p>
-                                                {request.reason && (
-                                                    <p className="text-slate-500 dark:text-slate-400">
-                                                        사유: {request.reason}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            <div className="mt-auto pt-5">
-                                                <Button
-                                                    onClick={() =>
-                                                        handleApplySubstitute(request.id)
-                                                    }
-                                                    className="w-full gap-2"
-                                                >
-                                                    <span className="material-icons text-sm">
-                                                        assignment_turned_in
-                                                    </span>
-                                                    대타 지원
-                                                </Button>
-                                            </div>
-                                        </CardBody>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-
-                        {activeTab === "my" && (
-                            <div className="space-y-4">
-                                {myRequests.map((request) => (
-                                    <Card key={request.id}>
-                                        <CardBody className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-semibold text-slate-900 dark:text-white">
-                                                        {request.date} / {request.shiftTime}
-                                                    </p>
-                                                    <span
-                                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusChip(
-                                                            request.status
-                                                        )}`}
-                                                    >
-                                                        {getStatusLabel(request.status)}
-                                                    </span>
-                                                </div>
-                                                {request.reason && (
-                                                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                                                        사유: {request.reason}
-                                                    </p>
-                                                )}
-                                                <p className="text-xs text-slate-400">
-                                                    요청일{" "}
-                                                    {new Date(request.createdAt).toLocaleDateString(
-                                                        "ko-KR"
-                                                    )}
-                                                </p>
-                                            </div>
-
-                                            {request.status === "pending" && (
-                                                <Button
-                                                    variant="secondary"
-                                                    onClick={() =>
-                                                        handleCancelMyRequest(request.id)
-                                                    }
-                                                    className="gap-2"
-                                                >
-                                                    <span className="material-icons text-sm">
-                                                        close
-                                                    </span>
-                                                    요청 취소
-                                                </Button>
-                                            )}
-                                        </CardBody>
-                                    </Card>
-                                ))}
-                            </div>
-                        )}
-
-                        {activeTab === "others" && (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                                {openRequests.map((request) => {
-                                    const isAccepted = acceptedRequestIds.includes(request.id);
-                                    return (
-                                        <Card key={`others-${request.id}`} className="h-full">
-                                            <CardBody className="flex flex-col h-full">
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div>
-                                                        <p className="font-semibold text-slate-900 dark:text-white">
-                                                            {request.requesterName}
-                                                        </p>
-                                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                            {request.date} / {request.shiftTime}
-                                                        </p>
-                                                    </div>
-                                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                                                        대타 모집중
-                                                    </span>
-                                                </div>
-
-                                                {request.reason && (
-                                                    <p className="mt-4 text-sm text-slate-600 dark:text-slate-300">
-                                                        사유: {request.reason}
-                                                    </p>
-                                                )}
-
-                                                <div className="mt-auto pt-5">
-                                                    <Button
-                                                        className="w-full gap-2"
-                                                        onClick={() =>
-                                                            handleAcceptOtherRequest(request.id)
-                                                        }
-                                                        disabled={isAccepted}
-                                                    >
-                                                        <span className="material-icons text-sm">
-                                                            check
-                                                        </span>
-                                                        {isAccepted ? "수락 완료" : "요청 수락"}
-                                                    </Button>
-                                                </div>
-                                            </CardBody>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </main>
+        <main className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-6xl mx-auto space-y-6">
+            <div className="md:flex md:items-center md:justify-between">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white sm:text-3xl sm:truncate">
+                  {storeName} 대타 관리
+                </h2>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  대타를 구하거나, 동료의 근무를 대신해줄 수 있습니다.
+                </p>
+              </div>
+              <div className="mt-4 flex md:mt-0 md:ml-4">
+                <Button className="gap-2" onClick={openCreateModal}>
+                  <span className="material-icons text-sm">add</span>
+                  대타 요청 등록
+                </Button>
+              </div>
             </div>
 
-            <Modal
-                isOpen={isRequestModalOpen}
-                onClose={closeRequestModal}
-                title="대타 요청 등록"
-                size="md"
+            {/* 탭 네비게이션과 필터를 한 줄에 배치 (반응형: 모바일은 세로 배치) */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 dark:border-slate-700 gap-4">
+              {/* 왼쪽: 탭 메뉴 */}
+              <nav className="-mb-px flex gap-6 overflow-x-auto">
+                <TabButton
+                  label="다른 직원 요청"
+                  active={activeTab === "others"}
+                  onClick={() => handleTabChange("others")}
+                />
+                <TabButton
+                  label="내 요청 기록"
+                  active={activeTab === "my-requests"}
+                  onClick={() => handleTabChange("my-requests")}
+                />
+                <TabButton
+                  label="지원 내역"
+                  active={activeTab === "my-applications"}
+                  onClick={() => handleTabChange("my-applications")}
+                />
+              </nav>
+
+              {/* 오른쪽: 필터 및 정렬 */}
+              <div className="flex items-center gap-3 pb-2 md:pb-0">
+                <select
+                  className="p-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-primary/20 min-w-[100px]"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  {activeTab === "my-applications"
+                    ? APPLICATION_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))
+                    : REQUEST_STATUS_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                </select>
+
+                <select
+                  className="p-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-primary/20 min-w-[80px]"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                >
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {isLoading && (
+              <div className="py-12 text-center text-slate-500">로딩 중...</div>
+            )}
+
+            {!isLoading && activeTab === "others" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                {otherRequests.length > 0 ? (
+                  otherRequests.map((req) => (
+                    <RequestCard
+                      key={req.id}
+                      request={req}
+                      type="other"
+                      onAction={() => handleApply(req.id)}
+                    />
+                  ))
+                ) : (
+                  <EmptyState message="해당 조건의 대타 요청이 없습니다." />
+                )}
+              </div>
+            )}
+
+            {!isLoading && activeTab === "my-requests" && (
+              <div className="space-y-4">
+                {myRequests.length > 0 ? (
+                  myRequests.map((req) => (
+                    <RequestRow
+                      key={req.id}
+                      data={req}
+                      type="request"
+                      onAction={() => handleCancelRequest(req.id)}
+                    />
+                  ))
+                ) : (
+                  <EmptyState message="해당 조건의 대타 요청이 없습니다." />
+                )}
+              </div>
+            )}
+
+            {!isLoading && activeTab === "my-applications" && (
+              <div className="space-y-4">
+                {myApplications.length > 0 ? (
+                  myApplications.map((app) => (
+                    <RequestRow
+                      key={app.applicationId}
+                      data={app}
+                      type="application"
+                      onAction={() =>
+                        handleCancelApplication(app.applicationId)
+                      }
+                    />
+                  ))
+                ) : (
+                  <EmptyState message="해당 조건의 지원 내역이 없습니다." />
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="대타 요청 등록"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            대타가 필요한 근무를 선택하세요. (전체 스케줄 중 선택)
+          </p>
+
+          {myShifts.length > 0 ? (
+            <select
+              className="w-full p-2 border rounded dark:bg-slate-800 dark:border-slate-600 text-sm"
+              value={selectedShiftId}
+              onChange={(e) => setSelectedShiftId(e.target.value)}
             >
-                <div className="space-y-4">
-                    <p className="text-sm text-slate-600 dark:text-slate-400">
-                        대타가 필요한 근무를 선택하면 해당 요청이 등록됩니다.
-                    </p>
+              <option value="">근무 선택</option>
+              {myShifts.map((shift) => (
+                <option key={shift.id} value={shift.id}>
+                  {shift.date} ({shift.startTime.substring(0, 5)} -{" "}
+                  {shift.endTime.substring(0, 5)})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded text-sm text-slate-500 text-center">
+              대타 요청이 가능한 미래의 근무 스케줄이 없습니다.
+            </div>
+          )}
 
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                            Select Shift
-                        </label>
-                        <select
-                            value={selectedShiftId}
-                            onChange={(e) => setSelectedShiftId(e.target.value)}
-                            className="block w-full pl-3 pr-10 py-2.5 text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                        >
-                            {plannedShifts.map((shift) => (
-                                <option key={shift.id} value={shift.id}>
-                                    {shift.label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+          <textarea
+            className="w-full p-3 border rounded h-24 dark:bg-slate-800 dark:border-slate-600 text-sm"
+            placeholder="사유를 입력하세요"
+            value={requestReason}
+            onChange={(e) => setRequestReason(e.target.value)}
+          />
 
-                    <div className="space-y-2">
-                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                            사유 (선택)
-                        </label>
-                        <textarea
-                            value={requestReason}
-                            onChange={(e) => setRequestReason(e.target.value)}
-                            className="w-full min-h-[100px] text-sm border border-slate-200 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-3"
-                            placeholder="대타가 필요한 사유를 입력하세요."
-                        />
-                    </div>
-
-                    <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
-                        <input
-                            type="checkbox"
-                            checked={isUrgent}
-                            onChange={(e) => setIsUrgent(e.target.checked)}
-                            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
-                        />
-                        긴급 요청으로 표시
-                    </label>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        <Button variant="secondary" onClick={closeRequestModal}>
-                            취소
-                        </Button>
-                        <Button
-                            onClick={handleSubmitSubstituteRequest}
-                            disabled={!selectedShiftId}
-                        >
-                            요청 등록
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setIsModalOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleSubmitRequest} disabled={!selectedShiftId}>
+              등록
+            </Button>
+          </div>
         </div>
-    );
+      </Modal>
+    </div>
+  );
+}
+
+// --- Sub Components ---
+
+function TabButton({
+  label,
+  active,
+  onClick,
+  count,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  count?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
+        active
+          ? "border-primary text-primary"
+          : "border-transparent text-slate-500 hover:text-primary"
+      }`}
+    >
+      {label}
+      {count !== undefined && count > 0 && (
+        <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="col-span-full py-12 text-center text-slate-500 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
+      {message}
+    </div>
+  );
+}
+
+function RequestCard({
+  request,
+  type,
+  onAction,
+}: {
+  request: SubstituteRequestRes;
+  type: "other";
+  onAction: () => void;
+}) {
+  return (
+    <Card className="h-full">
+      <CardBody className="flex flex-col h-full gap-4">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="font-semibold text-slate-900 dark:text-white">
+              {request.requesterName}
+            </p>
+            <p className="text-xs text-slate-500">
+              요청일: {request.createdAt.split("T")[0]}
+            </p>
+          </div>
+          <Badge variant={getStatusVariant(request.status)}>
+            {getStatusLabel(request.status)}
+          </Badge>
+        </div>
+        <div className="space-y-1 text-sm">
+          <p className="font-medium text-slate-800 dark:text-slate-200">
+            📅 {request.date}
+          </p>
+          <p className="text-slate-600 dark:text-slate-400">
+            ⏰ {request.startTime.substring(0, 5)} -{" "}
+            {request.endTime.substring(0, 5)}
+          </p>
+          {request.reason && (
+            <p className="text-slate-500 mt-2">"{request.reason}"</p>
+          )}
+        </div>
+        <div className="mt-auto">
+          <Button onClick={onAction} className="w-full">
+            지원하기
+          </Button>
+        </div>
+      </CardBody>
+    </Card>
+  );
+}
+
+function RequestRow({
+  data,
+  type,
+  onAction,
+}: {
+  data: any;
+  type: "request" | "application";
+  onAction: () => void;
+}) {
+  const isCancelable =
+    data.status === "OPEN" ||
+    data.status === "PENDING" ||
+    data.status === "WAITING";
+  return (
+    <Card>
+      <CardBody className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <Badge variant={getStatusVariant(data.status)}>
+              {getStatusLabel(data.status)}
+            </Badge>
+            <span className="font-semibold text-slate-900 dark:text-white">
+              {data.date} ({data.startTime.substring(0, 5)} -{" "}
+              {data.endTime.substring(0, 5)})
+            </span>
+          </div>
+          <p className="text-sm text-slate-500">
+            {type === "application"
+              ? `요청자: ${data.requesterName || "알 수 없음"}`
+              : `등록일: ${data.createdAt.split("T")[0]}`}
+          </p>
+        </div>
+        {isCancelable && (
+          <Button variant="secondary" size="sm" onClick={onAction}>
+            취소
+          </Button>
+        )}
+      </CardBody>
+    </Card>
+  );
 }
