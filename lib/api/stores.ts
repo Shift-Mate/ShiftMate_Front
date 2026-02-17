@@ -28,6 +28,119 @@ export const storeApi = {
         );
     },
 
+    async deleteStoreSchedules(
+        storeId: string,
+        weekStartDate: string
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.delete<unknown>(
+            `/stores/${storeId}/schedules?weekStartDate=${weekStartDate}`
+        );
+    },
+
+    async autoGenerateStoreSchedules(
+        storeId: string,
+        weekStartDate: string
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.post<unknown>(
+            `/stores/${storeId}/schedules/auto-generate`,
+            { weekStartDate }
+        );
+    },
+
+    async getUserSchedules(
+        storeId: string,
+        userId: string
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.get<unknown>(
+            `/stores/${storeId}/schedules/users/${userId}`
+        );
+    },
+
+    async getMySchedules(storeId: string): Promise<ApiResponse<unknown>> {
+        return apiClient.get<unknown>(`/stores/${storeId}/schedules/me`);
+    },
+
+    async getStoreMembers(
+        storeId: string,
+        filters?: {
+            status?: string;
+            role?: string;
+            department?: string;
+        }
+    ): Promise<ApiResponse<unknown>> {
+        const query = new URLSearchParams();
+        if (filters?.status) query.set("status", filters.status);
+        if (filters?.role) query.set("role", filters.role);
+        if (filters?.department) query.set("department", filters.department);
+
+        const queryString = query.toString();
+        const endpoint = queryString
+            ? `/stores/${storeId}/store-members?${queryString}`
+            : `/stores/${storeId}/store-members`;
+
+        return apiClient.get<unknown>(endpoint);
+    },
+
+    async createStoreMember(
+        storeId: string,
+        userId: number,
+        data: {
+            email: string;
+            role: string;
+            department: string;
+            minHoursPerWeek: number;
+            memberRank?: string;
+            hourlyWage?: number;
+            status?: string;
+            pinCode?: string;
+        }
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.post<unknown>(
+            `/stores/${storeId}/store-members/${userId}`,
+            data
+        );
+    },
+
+    async getMemberPreferences(
+        storeId: string,
+        memberId: string
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.get<unknown>(
+            `/stores/${storeId}/members/${memberId}/preferences`
+        );
+    },
+
+    async createMemberPreferences(
+        storeId: string,
+        memberId: string,
+        data: {
+            preference: Array<{
+                dayOfWeek: string;
+                type: "UNAVAILABLE" | "NATURAL" | "PREFERRED";
+                templateId: number;
+            }>;
+        }
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.post<unknown>(
+            `/stores/${storeId}/members/${memberId}/preferences`,
+            data
+        );
+    },
+
+    async updateMemberPreference(
+        storeId: string,
+        memberId: string,
+        preferenceId: number,
+        data: {
+            preferenceType: "UNAVAILABLE" | "NATURAL" | "PREFERRED";
+        }
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.put<unknown>(
+            `/stores/${storeId}/members/${memberId}/preferences/${preferenceId}`,
+            data
+        );
+    },
+
     async verifyBizno(bno: string): Promise<ApiResponse<unknown>> {
         return apiClient.post<unknown>("/stores/verify-bizno", { bno });
     },

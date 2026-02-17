@@ -48,6 +48,14 @@ type ScheduleResDto = {
     templateName: string | null;
 };
 
+type StoreMemberListResDto = {
+    id: number;
+    userId: number;
+    userName: string;
+    userEmail: string;
+    role: string;
+};
+
 type ShiftTone = "emerald" | "amber" | "sky";
 
 type WeekDay = {
@@ -118,12 +126,93 @@ const isScheduleResDto = (value: unknown): value is ScheduleResDto => {
     );
 };
 
+const isStoreMemberListResDto = (value: unknown): value is StoreMemberListResDto => {
+    if (!value || typeof value !== "object") {
+        return false;
+    }
+
+    const candidate = value as Partial<StoreMemberListResDto>;
+
+    return (
+        typeof candidate.id === "number" &&
+        typeof candidate.userId === "number" &&
+        typeof candidate.userName === "string" &&
+        typeof candidate.userEmail === "string" &&
+        typeof candidate.role === "string"
+    );
+};
+
 const isApiEnvelope = (value: unknown): value is ApiResponse<unknown> => {
     if (!value || typeof value !== "object") {
         return false;
     }
 
     return typeof (value as { success?: unknown }).success === "boolean";
+};
+
+const parseStoreMemberData = (rawData: unknown): StoreMemberListResDto[] => {
+    if (Array.isArray(rawData)) {
+        return rawData.filter(isStoreMemberListResDto);
+    }
+
+    if (isApiEnvelope(rawData) && rawData.success && Array.isArray(rawData.data)) {
+        return rawData.data.filter(isStoreMemberListResDto);
+    }
+
+    return [];
+};
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+    const parts = token.split(".");
+    if (parts.length < 2) {
+        return null;
+    }
+
+    try {
+        const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const normalized = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+        return JSON.parse(atob(normalized)) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+};
+
+const getIdentityFromToken = (token: string): { userId: string | null; email: string | null } => {
+    const payload = decodeJwtPayload(token);
+    if (!payload) {
+        return { userId: null, email: null };
+    }
+
+    const idKeys = ["userId", "id", "uid", "memberId"];
+    for (const key of idKeys) {
+        const value = payload[key];
+        if (typeof value === "number") {
+            return { userId: String(value), email: null };
+        }
+        if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+            return { userId: value.trim(), email: null };
+        }
+    }
+
+    const sub = payload.sub;
+    if (typeof sub === "string" && /^\d+$/.test(sub.trim())) {
+        return { userId: sub.trim(), email: null };
+    }
+
+    const emailKeys = ["email", "userEmail", "sub"];
+    for (const key of emailKeys) {
+        const value = payload[key];
+        if (typeof value === "string" && value.includes("@")) {
+            return { userId: null, email: value.toLowerCase() };
+        }
+    }
+
+    return { userId: null, email: null };
+};
+
+const isManagerRole = (role: string): boolean => {
+    const normalized = role.toUpperCase();
+    return normalized === "OWNER" || normalized === "MANAGER" || normalized === "ADMIN";
 };
 
 const formatTime = (value: string): string => {
@@ -234,6 +323,10 @@ export default function StoreMainPage() {
     );
     const [rosterRows, setRosterRows] = useState<RosterRow[]>([]);
     const [scheduleItems, setScheduleItems] = useState<ScheduleResDto[]>([]);
+    const [canManageSchedule, setCanManageSchedule] = useState(false);
+    const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
+    const [isAutoGeneratingSchedule, setIsAutoGeneratingSchedule] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -409,7 +502,64 @@ export default function StoreMainPage() {
         };
 
         void fetchRoster();
-    }, [storeId, weekStartDate, weekDays]);
+    }, [storeId, weekStartDate, weekDays, reloadKey]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchMyRole = async () => {
+            if (!/^\d+$/.test(storeId)) {
+                setCanManageSchedule(false);
+                return;
+            }
+
+            const token =
+                typeof window !== "undefined"
+                    ? localStorage.getItem("auth_token")
+                    : null;
+            if (!token) {
+                setCanManageSchedule(false);
+                return;
+            }
+
+            const identity = getIdentityFromToken(token);
+            if (!identity.userId && !identity.email) {
+                setCanManageSchedule(false);
+                return;
+            }
+
+            const response = await storeApi.getStoreMembers(storeId);
+            if (!response.success) {
+                if (!cancelled) {
+                    setCanManageSchedule(false);
+                }
+                return;
+            }
+
+            const members = parseStoreMemberData(response.data as unknown);
+            const myMember = members.find((member) => {
+                if (identity.userId && String(member.userId) === identity.userId) {
+                    return true;
+                }
+
+                if (identity.email && member.userEmail.toLowerCase() === identity.email) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            if (!cancelled) {
+                setCanManageSchedule(myMember ? isManagerRole(myMember.role) : false);
+            }
+        };
+
+        void fetchMyRole();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [storeId]);
 
     const totalSchedules = scheduleItems.length;
     const uniqueMembers = useMemo(
@@ -417,6 +567,85 @@ export default function StoreMainPage() {
         [scheduleItems]
     );
     const peakTemplates = rosterRows.filter((row) => row.shiftType === "PEAK").length;
+
+    const handleDeleteWeekSchedules = async () => {
+        if (!/^\d+$/.test(storeId)) {
+            window.alert("유효하지 않은 매장 ID입니다.");
+            return;
+        }
+
+        const ok = window.confirm(
+            `${weekStartDate} 주차 스케줄을 모두 삭제하시겠습니까?`
+        );
+        if (!ok) {
+            return;
+        }
+
+        setIsDeletingSchedule(true);
+
+        const response = await storeApi.deleteStoreSchedules(storeId, weekStartDate);
+
+        if (!response.success) {
+            const code = response.error ? getErrorCode(response.error) : "";
+            if (code === "NOT_AUTHORIZED" || code === "403") {
+                window.alert("관리자 권한이 필요합니다.");
+            } else if (code === "STORE_NOT_FOUND") {
+                window.alert("매장을 찾을 수 없습니다.");
+            } else if (code === "SHIFT_ASSIGNMENT_NOT_FOUND" || code === "404") {
+                window.alert("해당 주차의 배정된 스케줄이 없습니다.");
+            } else if (code === "INVALID_REQUEST" || code === "400") {
+                window.alert("요청 값이 올바르지 않습니다.");
+            } else {
+                window.alert(
+                    response.error?.message ?? "스케줄 삭제 중 오류가 발생했습니다."
+                );
+            }
+            setIsDeletingSchedule(false);
+            return;
+        }
+
+        setReloadKey((prev) => prev + 1);
+        setIsDeletingSchedule(false);
+        window.alert("해당 주차 스케줄을 삭제했습니다.");
+    };
+
+    const handleAutoGenerateWeekSchedules = async () => {
+        if (!/^\d+$/.test(storeId)) {
+            window.alert("유효하지 않은 매장 ID입니다.");
+            return;
+        }
+
+        setIsAutoGeneratingSchedule(true);
+
+        const response = await storeApi.autoGenerateStoreSchedules(
+            storeId,
+            weekStartDate
+        );
+
+        if (!response.success) {
+            const code = response.error ? getErrorCode(response.error) : "";
+            if (code === "NOT_AUTHORIZED" || code === "403") {
+                window.alert("관리자 권한이 필요합니다.");
+            } else if (code === "WEEK_ALREADY_EXISTS" || code === "409") {
+                window.alert("해당 주차 스케줄은 이미 생성되어 있습니다.");
+            } else if (code === "NOT_MONDAY_START_DATE") {
+                window.alert("주 시작일은 월요일이어야 합니다.");
+            } else if (code === "INVALID_REQUEST" || code === "400") {
+                window.alert("요청 값이 올바르지 않습니다.");
+            } else {
+                window.alert(
+                    response.error?.message ??
+                        "시간표 자동 생성 중 오류가 발생했습니다."
+                );
+            }
+            setIsAutoGeneratingSchedule(false);
+            return;
+        }
+
+        setReloadKey((prev) => prev + 1);
+        setIsAutoGeneratingSchedule(false);
+        window.alert("해당 주차 시간표를 자동 생성했습니다.");
+    };
 
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
@@ -437,6 +666,31 @@ export default function StoreMainPage() {
                                 </p>
                             </div>
                             <div className="mt-4 flex md:mt-0 md:ml-4 gap-3">
+                                {canManageSchedule && (
+                                    <>
+                                        <Button
+                                            variant="secondary"
+                                            className="gap-2"
+                                            onClick={handleDeleteWeekSchedules}
+                                            disabled={isDeletingSchedule}
+                                        >
+                                            <span className="material-icons text-sm">delete</span>
+                                            {isDeletingSchedule
+                                                ? "삭제 중..."
+                                                : "시간표 삭제"}
+                                        </Button>
+                                        <Button
+                                            className="gap-2"
+                                            onClick={handleAutoGenerateWeekSchedules}
+                                            disabled={isAutoGeneratingSchedule}
+                                        >
+                                            <span className="material-icons text-sm">auto_awesome</span>
+                                            {isAutoGeneratingSchedule
+                                                ? "생성 중..."
+                                                : "시간표 자동 생성"}
+                                        </Button>
+                                    </>
+                                )}
                                 <Button
                                     variant="secondary"
                                     className="gap-2"
@@ -592,7 +846,7 @@ export default function StoreMainPage() {
                                                                         {name}
                                                                     </div>
                                                                 ))
-                                                            ) : (
+                                                            ) : canManageSchedule ? (
                                                                 <button
                                                                     type="button"
                                                                     className="w-full h-full border border-dashed border-slate-300 dark:border-slate-600 rounded flex items-center justify-center text-slate-400 hover:text-primary hover:border-primary hover:bg-white dark:hover:bg-slate-800 transition-colors"
@@ -601,6 +855,8 @@ export default function StoreMainPage() {
                                                                         add
                                                                     </span>
                                                                 </button>
+                                                            ) : (
+                                                                <div className="w-full h-full rounded border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/10" />
                                                             )}
                                                         </div>
                                                     ))}
