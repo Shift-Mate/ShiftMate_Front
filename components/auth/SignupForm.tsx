@@ -17,7 +17,7 @@ export const SignupForm: React.FC = () => {
         e.preventDefault();
 
         if (phoneNumber.length !== 11) {
-            alert("전화번호를 정확히 입력해주세요 (11자리)");
+            alert("전화번호를 정확히 입력해주세요 (11자리 e.g. 01012341234)");
             return;
         }
 
