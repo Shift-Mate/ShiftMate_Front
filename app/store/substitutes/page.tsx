@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -81,7 +81,7 @@ const APPLICATION_STATUS_OPTIONS = [
   { label: "지원취소", value: "CANCELED" },
 ];
 
-export default function SubstitutesPage() {
+function SubstitutesPageContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") || "1";
   const [storeName, setStoreName] = useState("");
@@ -658,5 +658,13 @@ function RequestRow({
         )}
       </CardBody>
     </Card>
+  );
+}
+
+export default function SubstitutesPage() {
+  return (
+    <Suspense fallback={null}>
+      <SubstitutesPageContent />
+    </Suspense>
   );
 }

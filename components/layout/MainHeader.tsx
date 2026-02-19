@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { authApi } from "@/lib/api/auth";
 import { storeApi } from "@/lib/api/stores";
@@ -169,7 +169,7 @@ const getRoleLabel = (role: string): string => {
     }
 };
 
-export const MainHeader: React.FC = () => {
+const MainHeaderContent: React.FC = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [storeRoleLabel, setStoreRoleLabel] = useState<string | null>(null);
@@ -402,5 +402,13 @@ export const MainHeader: React.FC = () => {
             </header>
             <div className="h-20 shrink-0" />
         </>
+    );
+};
+
+export const MainHeader: React.FC = () => {
+    return (
+        <Suspense fallback={null}>
+            <MainHeaderContent />
+        </Suspense>
     );
 };

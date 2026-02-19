@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -74,7 +74,7 @@ const APPLICANT_STATUS_OPTIONS = [
   { label: "취소됨", value: "CANCELED" },
 ];
 
-export default function ManagerRequestsPage() {
+function ManagerRequestsPageContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") || "1";
   const [storeName, setStoreName] = useState("");
@@ -631,5 +631,13 @@ export default function ManagerRequestsPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function ManagerRequestsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ManagerRequestsPageContent />
+    </Suspense>
   );
 }

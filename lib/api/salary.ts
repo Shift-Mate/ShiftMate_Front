@@ -9,7 +9,7 @@ export type SalaryMonth = {
 export type StoreMonthlySalary = {
     storeId: number;
     storeName: string;
-    storeAlias?: string | null;
+    storeAlias: string | null;
     hourlyWage: number;
     workedMinutes: number;
     workedHours: number;

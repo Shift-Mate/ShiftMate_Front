@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -22,7 +22,7 @@ interface ExtendedShift extends Shift {
   isRequested?: boolean;
 }
 
-export default function MySchedulePage() {
+function MySchedulePageContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") || "1";
 
@@ -452,5 +452,13 @@ export default function MySchedulePage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+export default function MySchedulePage() {
+  return (
+    <Suspense fallback={null}>
+      <MySchedulePageContent />
+    </Suspense>
   );
 }
