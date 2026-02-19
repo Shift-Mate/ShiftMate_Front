@@ -15,8 +15,14 @@ export const SignupForm: React.FC = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (phoneNumber.length !== 11) {
+            alert("전화번호를 정확히 입력해주세요 (11자리)");
+            return;
+        }
+
         // TODO: API 연동
-        console.log("Signup:", { firstName, lastName, email, password });
+        console.log("Signup:", { firstName, lastName, email, password, phoneNumber });
     };
 
     return (
