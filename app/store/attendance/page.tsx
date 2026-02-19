@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Button } from "@/components/ui/Button";
 import { attendanceApi, TodayAttendanceResponse } from "@/lib/api/attendance";
 
-export default function AttendancePage() {
+function AttendancePageContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId");
 
@@ -343,5 +343,13 @@ export default function AttendancePage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function AttendancePage() {
+  return (
+    <Suspense fallback={null}>
+      <AttendancePageContent />
+    </Suspense>
   );
 }

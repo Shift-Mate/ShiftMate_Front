@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -68,7 +68,7 @@ const staffWorkCosts: StaffWorkCost[] = [
 
 const formatWon = (value: number) => `₩${value.toLocaleString("ko-KR")}`;
 
-export default function StoreLaborCostPage() {
+function StoreLaborCostPageContent() {
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId") || "1";
     const storeName = useMemo(
@@ -258,4 +258,12 @@ export default function StoreLaborCostPage() {
             </div>
         </div>
     );
+}
+
+export default function StoreLaborCostPage() {
+  return (
+    <Suspense fallback={null}>
+      <StoreLaborCostPageContent />
+    </Suspense>
+  );
 }

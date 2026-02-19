@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -310,7 +310,7 @@ const parseScheduleData = (rawData: unknown): ScheduleResDto[] => {
     return [];
 };
 
-export default function StoreMainPage() {
+function StoreMainPageContent() {
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId") || "1";
     const storeName = useMemo(
@@ -872,4 +872,12 @@ export default function StoreMainPage() {
             </div>
         </div>
     );
+}
+
+export default function StoreMainPage() {
+  return (
+    <Suspense fallback={null}>
+      <StoreMainPageContent />
+    </Suspense>
+  );
 }

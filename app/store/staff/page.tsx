@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
@@ -236,7 +236,7 @@ const mapBackendDepartmentToEmployeeDepartment = (
     return "front_of_house";
 };
 
-export default function StaffManagementPage() {
+function StaffManagementPageContent() {
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId") || "1";
     const storeName = useMemo(
@@ -1033,4 +1033,12 @@ export default function StaffManagementPage() {
             </Modal>
         </div>
     );
+}
+
+export default function StaffManagementPage() {
+  return (
+    <Suspense fallback={null}>
+      <StaffManagementPageContent />
+    </Suspense>
+  );
 }

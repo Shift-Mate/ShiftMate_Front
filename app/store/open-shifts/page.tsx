@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
@@ -86,7 +86,7 @@ const getShiftTypeColor = (type: string) => {
     }
 };
 
-export default function OpenShiftsPage() {
+function OpenShiftsPageContent() {
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId") || "1";
     const storeName = useMemo(
@@ -279,4 +279,12 @@ export default function OpenShiftsPage() {
             </div>
         </div>
     );
+}
+
+export default function OpenShiftsPage() {
+  return (
+    <Suspense fallback={null}>
+      <OpenShiftsPageContent />
+    </Suspense>
+  );
 }

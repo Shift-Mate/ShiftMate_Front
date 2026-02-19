@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { StoreSidebar } from "@/components/domain/StoreSidebar";
@@ -244,7 +244,7 @@ const getErrorCode = (error: {
 const getKey = (dayOfWeek: DayOfWeek, templateId: number): string =>
     `${dayOfWeek}-${templateId}`;
 
-export default function StaffPreferencePage() {
+function StaffPreferencePageContent() {
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId") || "1";
     const memberId =
@@ -804,4 +804,12 @@ export default function StaffPreferencePage() {
             </div>
         </div>
     );
+}
+
+export default function StaffPreferencePage() {
+  return (
+    <Suspense fallback={null}>
+      <StaffPreferencePageContent />
+    </Suspense>
+  );
 }
