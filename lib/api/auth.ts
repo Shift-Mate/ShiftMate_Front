@@ -151,15 +151,26 @@ export const authApi = {
     return apiClient.patch<string>("/users/me/password", payload);
   },
 
-  async refreshToken(): Promise<ApiResponse<{ token: string }>> {
-    const response = await apiClient.post<{ token: string }>("/auth/refresh");
+  async refreshToken(): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
+    const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
+    const response = await apiClient.post<{ accessToken: string; refreshToken: string }>(
+      "/auth/reissue",
+      { refreshToken: refreshToken ?? "" },
+    );
 
     if (response.success && response.data) {
       const payload = getAuthPayload(response.data);
       const accessToken = getAccessToken(payload);
+      const nextRefreshToken =
+        payload && typeof payload === "object" && "refreshToken" in payload
+          ? (payload as { refreshToken?: unknown }).refreshToken
+          : undefined;
 
       if (accessToken) {
         apiClient.setToken(accessToken);
+      }
+      if (typeof window !== "undefined" && typeof nextRefreshToken === "string" && nextRefreshToken) {
+        localStorage.setItem("refresh_token", nextRefreshToken);
       }
     }
 
