@@ -5,3 +5,4 @@ export { userApi } from "./users";
 export { employeeApi } from "./employees";
 export { scheduleApi } from "./schedules";
 export { attendanceApi } from "./attendance";
+export { salaryApi } from "./salary";
