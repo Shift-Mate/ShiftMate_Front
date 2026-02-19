@@ -64,7 +64,11 @@ export default function AuthPage() {
                     </div>
 
                     {/* Form */}
-                    {mode === "login" ? <LoginForm /> : <SignupForm />}
+                    {mode === "login" ? (
+                        <LoginForm />
+                    ) : (
+                        <SignupForm onSignupSuccess={() => setMode("login")} />
+                    )}
                 </div>
 
                 {/* Footer Rights */}
