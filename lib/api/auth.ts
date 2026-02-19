@@ -2,6 +2,17 @@ import { apiClient } from "./client";
 import { User, LoginCredentials, SignupData, AuthResponse, SignupResponse } from "@/types/auth";
 import { ApiResponse } from "@/types/api";
 
+export type ChangePasswordPayload = {
+  currentPassword: string;
+  newPassword: string;
+  newPasswordConfirm: string;
+};
+
+export type UpdateProfilePayload = {
+  name: string;
+  phoneNumber: string;
+};
+
 const getAuthPayload = (data: any): any => {
   if (data && typeof data === "object" && "data" in data) {
     return data.data;
@@ -130,6 +141,14 @@ export const authApi = {
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
     return apiClient.get<User>("/users/me");
+  },
+
+  async updateMyProfile(payload: UpdateProfilePayload): Promise<ApiResponse<unknown>> {
+    return apiClient.patch<unknown>("/users/me", payload);
+  },
+
+  async changePassword(payload: ChangePasswordPayload): Promise<ApiResponse<string>> {
+    return apiClient.patch<string>("/users/me/password", payload);
   },
 
   async refreshToken(): Promise<ApiResponse<{ token: string }>> {

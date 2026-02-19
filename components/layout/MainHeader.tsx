@@ -201,6 +201,22 @@ export const MainHeader: React.FC = () => {
         }
     }, [pathname]);
 
+    useEffect(() => {
+        const handleAuthUserNameUpdated = (event: Event) => {
+            const customEvent = event as CustomEvent<{ name?: string }>;
+            const nextName = customEvent.detail?.name?.trim();
+            if (nextName) {
+                setDisplayName(nextName);
+                localStorage.setItem("auth_user_name", nextName);
+            }
+        };
+
+        window.addEventListener("auth-user-name-updated", handleAuthUserNameUpdated as EventListener);
+        return () => {
+            window.removeEventListener("auth-user-name-updated", handleAuthUserNameUpdated as EventListener);
+        };
+    }, []);
+
     const handleLogout = async () => {
         try {
             await authApi.logout();
