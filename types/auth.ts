@@ -18,9 +18,15 @@ export interface LoginCredentials {
 export interface SignupData {
     email: string;
     password: string;
-    firstName: string;
-    lastName: string;
-    role: UserRole;
+    name: string;
+    phoneNumber: string;
+}
+
+export interface SignupResponse {
+  id: number;
+  email: string;
+  name: string;
+  phoneNumber: string;
 }
 
 export interface AuthResponse {

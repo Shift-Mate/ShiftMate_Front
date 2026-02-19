@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { User, LoginCredentials, SignupData, AuthResponse } from "@/types/auth";
+import { User, LoginCredentials, SignupData, AuthResponse, SignupResponse } from "@/types/auth";
 import { ApiResponse } from "@/types/api";
 
 const getAuthPayload = (data: any): any => {
@@ -90,29 +90,33 @@ export const authApi = {
     return response;
   },
 
-  async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
-    const response = await apiClient.post<AuthResponse>("/auth/signup", data);
-
-    if (response.success && response.data) {
-      const payload = getAuthPayload(response.data);
-      const accessToken = getAccessToken(payload);
-
-      if (accessToken) {
-        apiClient.setToken(accessToken);
-      }
-      if (typeof window !== "undefined") {
-        if (payload?.refreshToken) {
-          localStorage.setItem("refresh_token", payload.refreshToken);
-        }
-        const displayName = getUserDisplayName(payload);
-        if (displayName) {
-          localStorage.setItem("auth_user_name", displayName);
-        }
-      }
-    }
-
-    return response;
+  async signup(data: SignupData): Promise<ApiResponse<SignupResponse>> {
+    return apiClient.post<SignupResponse>("/auth/signup", data);
   },
+
+  // async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
+  //   const response = await apiClient.post<AuthResponse>("/auth/signup", data);
+
+  //   if (response.success && response.data) {
+  //     const payload = getAuthPayload(response.data);
+  //     const accessToken = getAccessToken(payload);
+
+  //     if (accessToken) {
+  //       apiClient.setToken(accessToken);
+  //     }
+  //     if (typeof window !== "undefined") {
+  //       if (payload?.refreshToken) {
+  //         localStorage.setItem("refresh_token", payload.refreshToken);
+  //       }
+  //       const displayName = getUserDisplayName(payload);
+  //       if (displayName) {
+  //         localStorage.setItem("auth_user_name", displayName);
+  //       }
+  //     }
+  //   }
+
+  //   return response;
+  // },
 
   async logout(): Promise<void> {
     apiClient.clearToken();
