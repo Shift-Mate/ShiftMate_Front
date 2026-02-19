@@ -2,13 +2,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/lib/api/auth";
 
-export const SignupForm: React.FC = () => {
-    const router = useRouter();
+interface SignupFormProps {
+    onSignupSuccess?: () => void;
+}
+
+export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
@@ -16,18 +19,21 @@ export const SignupForm: React.FC = () => {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [errorMessage, setErrorMessage] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (phoneNumber.length !== 11) {
-            alert("전화번호를 정확히 입력해주세요 (11자리 e.g. 01012341234)");
+            await Swal.fire({
+                icon: "warning",
+                title: "전화번호 확인",
+                text: "전화번호를 정확히 입력해주세요 (11자리 e.g. 01012341234)",
+                confirmButtonText: "확인",
+            });
             return;
         }
 
         setIsLoading(true);
-        setErrorMessage("");
 
         try {
             const name = `${lastName}${firstName}`.trim();
@@ -43,19 +49,23 @@ export const SignupForm: React.FC = () => {
                 throw new Error(signupResponse.error?.message || "회원가입에 실패했습니다.");
             }
 
-            // 회원가입 성공 후 바로 로그인해서 토큰 저장
-            const loginResponse = await authApi.login({ email, password });
-            if (!loginResponse.success) {
-                throw new Error(loginResponse.error?.message || "로그인에 실패했습니다.");
-            }
-
-            router.push("/");
+            await Swal.fire({
+                icon: "success",
+                title: "회원가입 완료",
+                text: "로그인 후 이용해주세요.",
+                confirmButtonText: "확인",
+            });
+            onSignupSuccess?.();
         } catch (error) {
-            setErrorMessage(
-                error instanceof Error
-                    ? error.message
-                    : "회원가입 요청 중 오류가 발생했습니다."
-            );
+            await Swal.fire({
+                icon: "error",
+                title: "회원가입 실패",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "회원가입 요청 중 오류가 발생했습니다.",
+                confirmButtonText: "확인",
+            });
         } finally {
             setIsLoading(false);
         }
@@ -134,12 +144,6 @@ export const SignupForm: React.FC = () => {
             <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "회원가입 중..." : "회원가입"}
             </Button>
-
-            {errorMessage && (
-                <p className="text-sm text-red-500" role="alert">
-                    {errorMessage}
-                </p>
-            )}
 
             <div className="relative">
                 <div className="absolute inset-0 flex items-center">
