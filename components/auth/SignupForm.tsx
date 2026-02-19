@@ -51,10 +51,17 @@ export const SignupForm: React.FC = () => {
 
               <Input
                 label="전화번호"
-                type="phoneNumber"
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="000-0000-0000"
+                onChange={(e) => {
+                    const onlyNumbers = e.target.value.replace(/[^0-9]/g, "");
+                    if (onlyNumbers.length <= 11) {
+                    setPhoneNumber(onlyNumbers);
+                    }
+                }}
+                placeholder="01012345678"
                 required
             />
 
