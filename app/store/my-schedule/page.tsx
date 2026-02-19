@@ -15,9 +15,12 @@ import {
 } from "@/lib/api/attendance";
 import { scheduleApi } from "@/lib/api/schedules";
 import { storeApi } from "@/lib/api/stores";
+import { userApi } from "@/lib/api/users"; 
 
-// 임시 시급
-const HOURLY_WAGE = 10000;
+// Shift 타입 확장을 위해 인터페이스 보강
+interface ExtendedShift extends Shift {
+  isRequested?: boolean;
+}
 
 export default function MySchedulePage() {
   const searchParams = useSearchParams();
@@ -26,12 +29,19 @@ export default function MySchedulePage() {
   // 상태 관리
   const [storeName, setStoreName] = useState("");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [shifts, setShifts] = useState<Shift[]>([]);
+
+  const [shifts, setShifts] = useState<ExtendedShift[]>([]);
+
+  // 시급은 별도 상태로 관리
+  const [hourlyWage, setHourlyWage] = useState(0);
+
+  // 통계 상태 (총 시간, 분, 일수)
   const [stats, setStats] = useState({
     totalWorkTime: "0시간 0분",
     totalMinutes: 0,
     days: 0,
   });
+
   const [isLoading, setIsLoading] = useState(false);
 
   // 모달 관련 상태
@@ -39,49 +49,42 @@ export default function MySchedulePage() {
   const [selectedShiftId, setSelectedShiftId] = useState<string>("");
   const [requestReason, setRequestReason] = useState("");
 
-  // [수정] 매장 정보 불러오기
+  // 1. 매장 정보 및 내 프로필(시급) 불러오기
   useEffect(() => {
-    const fetchStoreInfo = async () => {
+    const fetchStoreAndProfile = async () => {
       if (!storeId) return;
       try {
-        const res = await storeApi.getStore(storeId);
-        console.log("MySchedule Store Info:", res);
+        // 매장 정보 조회
+        const storeRes = await storeApi.getStore(storeId);
+        if (storeRes.success && storeRes.data) {
+          const rawData = storeRes.data as any;
+          setStoreName(rawData.name || rawData.data?.name || `매장 ${storeId}`);
+        }
 
-        if (res.success && res.data) {
-          // [수정] API 응답이 중첩된 구조({ success: true, data: { ... } })일 수 있으므로 처리
-          const rawData = res.data as any;
+        // 내 매장 프로필 조회 (시급 가져오기)
+        const profileRes = await userApi.getMyStoreProfile(storeId);
 
-          // Case 1: 데이터가 중첩된 경우 (res.data.data.name) -> 로그상 이 케이스에 해당함
-          if (rawData.data && rawData.data.name) {
-            setStoreName(rawData.data.name);
-          }
-          // Case 2: 데이터가 바로 있는 경우 (res.data.name)
-          else if (rawData.name) {
-            setStoreName(rawData.name);
-          }
-          // Case 3: 이름을 찾을 수 없는 경우
-          else {
-            setStoreName(`매장 ${storeId}`);
-          }
-        } else {
-          setStoreName(`매장 ${storeId}`);
+        if (profileRes.success && profileRes.data) {
+          const rawData = profileRes.data as any;
+          const realData = rawData.data ? rawData.data : rawData;
+
+          setHourlyWage(realData.hourlyWage || 0);
         }
       } catch (error) {
-        console.error("Failed to fetch store info:", error);
+        console.error("Failed to fetch store info or profile:", error);
         setStoreName(`매장 ${storeId}`);
       }
     };
-    fetchStoreInfo();
+    fetchStoreAndProfile();
   }, [storeId]);
 
-  // weekStart 계산 (월요일 기준) - Timezone Issue 해결
+  // weekStart 계산 (월요일 기준)
   const weekStart = useMemo(() => {
     const d = new Date(currentDate);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(d.setDate(diff));
 
-    // 로컬 시간 기준으로 날짜 문자열 생성
     const year = monday.getFullYear();
     const month = String(monday.getMonth() + 1).padStart(2, "0");
     const date = String(monday.getDate()).padStart(2, "0");
@@ -97,7 +100,7 @@ export default function MySchedulePage() {
     return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 - ${end.getMonth() + 1}월 ${end.getDate()}일`;
   };
 
-  // 스케줄 데이터 불러오기
+  // 2. 스케줄 데이터 불러오기 및 총 근무시간 계산
   useEffect(() => {
     const fetchData = async () => {
       if (!storeId) return;
@@ -112,24 +115,28 @@ export default function MySchedulePage() {
           const rawData = response.data as any;
           const realData = rawData.data ? rawData.data : rawData;
 
-          const totalWorkTime = realData.totalWorkTime || "0시간 0분";
-          const totalMinutes = realData.totalMinutes || 0;
           const weeklyData: WeeklyAttendanceItemResponse[] = Array.isArray(
             realData.weeklyData,
           )
             ? realData.weeklyData
             : [];
 
-          setStats({
-            totalWorkTime,
-            totalMinutes,
-            days: weeklyData.filter((d) => d.workedMinutes > 0).length,
-          });
+          // 총 근무 시간 계산 로직 (화면에 보이는 스케줄 기준 직접 합산)
+          let calculatedTotalMinutes = 0;
 
-          // id에 assignmentId 매핑 (대타 요청 식별용)
-          const mappedShifts: Shift[] = weeklyData.map((item) => {
+          // 데이터 매핑
+          const mappedShifts: ExtendedShift[] = weeklyData.map((item) => {
             const startObj = new Date(item.updatedStartTime);
             const endObj = new Date(item.updatedEndTime);
+
+            // 근무 시간 차이 계산 
+            const diffMs = endObj.getTime() - startObj.getTime();
+            const diffMins = Math.floor(diffMs / (1000 * 60));
+
+            // 유효한 근무 시간인 경우 합산
+            if (diffMins > 0) {
+              calculatedTotalMinutes += diffMins;
+            }
 
             const dateStr =
               startObj.getFullYear() +
@@ -156,7 +163,19 @@ export default function MySchedulePage() {
               type: type,
               status: item.workedMinutes > 0 ? "completed" : "scheduled",
               attendanceStatus: item.status,
+              isRequested: (item as any).hasSubstituteRequest,
             };
+          });
+
+          // 분 -> "X시간 Y분" 포맷팅
+          const hours = Math.floor(calculatedTotalMinutes / 60);
+          const minutes = calculatedTotalMinutes % 60;
+          const formattedWorkTime = `${hours}시간 ${minutes}분`;
+
+          setStats({
+            totalWorkTime: formattedWorkTime,
+            totalMinutes: calculatedTotalMinutes,
+            days: weeklyData.length,
           });
 
           setShifts(mappedShifts);
@@ -181,15 +200,18 @@ export default function MySchedulePage() {
     setCurrentDate(new Date());
   };
 
-  // 모달 핸들러
+  // 모달 핸들러 
   const handleOpenModal = () => {
     setIsModalOpen(true);
     const now = new Date();
-    const futureShifts = shifts.filter(
-      (s) => new Date(`${s.date}T${s.endTime}`) > now,
-    );
-    if (futureShifts.length > 0) {
-      setSelectedShiftId(futureShifts[0].id);
+    const availableShifts = shifts.filter((s) => {
+      const shiftDate = new Date(`${s.date}T${s.endTime}`);
+      const after24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      return shiftDate > after24Hours && !s.isRequested;
+    });
+
+    if (availableShifts.length > 0) {
+      setSelectedShiftId(availableShifts[0].id);
     } else {
       setSelectedShiftId("");
     }
@@ -201,19 +223,18 @@ export default function MySchedulePage() {
     setSelectedShiftId("");
   };
 
-  // 대타 요청 등록 핸들러
   const handleSubmitRequest = async () => {
     if (!selectedShiftId) return;
-
     try {
       const res = await scheduleApi.createSubstituteRequest(storeId, {
-        shiftId: selectedShiftId,
+        shiftId: selectedShiftId, 
         reason: requestReason,
       });
 
       if (res.success) {
         alert("대체 근무 요청이 등록되었습니다.");
         handleCloseModal();
+        window.location.reload();
       } else {
         alert(res.error?.message || "요청 등록에 실패했습니다.");
       }
@@ -238,15 +259,11 @@ export default function MySchedulePage() {
                 <h2 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white sm:text-3xl sm:truncate">
                   {storeName} 내 근무 일정
                 </h2>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
                   이번 주 개인 근무 스케줄을 확인하세요.
                 </p>
               </div>
               <div className="mt-4 flex md:mt-0 md:ml-4 gap-3">
-                <Button variant="secondary" className="gap-2">
-                  <span className="material-icons text-sm">download</span>
-                  내보내기
-                </Button>
                 <Button className="gap-2" onClick={handleOpenModal}>
                   <span className="material-icons text-sm">add</span>
                   대체 근무 요청
@@ -327,12 +344,12 @@ export default function MySchedulePage() {
                 <CardBody className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                      예상 급여 (₩{HOURLY_WAGE.toLocaleString()}/시)
+                      예상 급여 (₩{hourlyWage.toLocaleString()}/시)
                     </p>
                     <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                      ₩
+                      ₩{/* 예상 급여 계산: (총 분 / 60) * 시급 */}
                       {Math.floor(
-                        (stats.totalMinutes / 60) * HOURLY_WAGE,
+                        (stats.totalMinutes / 60) * hourlyWage,
                       ).toLocaleString()}
                     </p>
                   </div>
@@ -350,26 +367,6 @@ export default function MySchedulePage() {
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
                     주간 스케줄
                   </h3>
-                  <div className="flex items-center gap-4 text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-blue-500" />
-                      <span className="text-slate-600 dark:text-slate-400">
-                        오픈
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-green-500" />
-                      <span className="text-slate-600 dark:text-slate-400">
-                        미들
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded bg-purple-500" />
-                      <span className="text-slate-600 dark:text-slate-400">
-                        마감
-                      </span>
-                    </div>
-                  </div>
                 </div>
               </CardHeader>
               <CardBody>
@@ -380,7 +377,7 @@ export default function MySchedulePage() {
         </main>
       </div>
 
-      {/* 대타 요청 모달 */}
+      {/* 모달 컴포넌트는 기존과 동일 */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -390,6 +387,10 @@ export default function MySchedulePage() {
         <div className="space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-400">
             대타가 필요한 근무(현재 조회된 주간 스케줄)를 선택하세요.
+            <br />
+            <span className="text-xs text-rose-500">
+              * 근무 시작 24시간 전까지만 요청 가능합니다.
+            </span>
           </p>
 
           <select
@@ -400,17 +401,28 @@ export default function MySchedulePage() {
             <option value="">근무 선택</option>
             {shifts.map((shift) => {
               const shiftDate = new Date(`${shift.date}T${shift.endTime}`);
-              const isPast = shiftDate < new Date();
+              const now = new Date();
+              const after24Hours = new Date(
+                now.getTime() + 24 * 60 * 60 * 1000,
+              );
+
+              const isPast = shiftDate <= after24Hours;
+              const isRequested = shift.isRequested;
+              const isDisabled = isPast || isRequested;
+
+              let statusText = "";
+              if (isPast) statusText = "(종료)";
+              else if (isRequested) statusText = "(신청됨)";
 
               return (
                 <option
                   key={shift.id}
                   value={shift.id}
-                  disabled={isPast}
-                  className={isPast ? "text-slate-400 bg-slate-100" : ""}
+                  disabled={isDisabled}
+                  className={isDisabled ? "text-slate-400 bg-slate-100" : ""}
                 >
                   {shift.date} ({shift.startTime} - {shift.endTime}){" "}
-                  {isPast ? "(종료)" : ""}
+                  {statusText}
                 </option>
               );
             })}
