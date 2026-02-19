@@ -58,7 +58,13 @@ const SORT_OPTIONS = [
   { label: "오래된순", value: "oldest" },
 ];
 
-const REQUEST_STATUS_OPTIONS = [
+const OTHERS_REQUEST_STATUS_OPTIONS = [
+  { label: "전체 상태", value: "ALL" },
+  { label: "모집중", value: "OPEN" },
+  { label: "승인대기", value: "PENDING" },
+];
+
+const MY_REQUEST_STATUS_OPTIONS = [
   { label: "전체 상태", value: "ALL" },
   { label: "모집중", value: "OPEN" },
   { label: "승인대기", value: "PENDING" },
@@ -105,6 +111,14 @@ export default function SubstitutesPage() {
   const [myShifts, setMyShifts] = useState<UserScheduleRes[]>([]);
   const [selectedShiftId, setSelectedShiftId] = useState<string>("");
   const [requestReason, setRequestReason] = useState("");
+
+  // 현재 탭에 맞는 상태 옵션 가져오기
+  const currentStatusOptions =
+    activeTab === "others"
+      ? OTHERS_REQUEST_STATUS_OPTIONS
+      : activeTab === "my-requests"
+        ? MY_REQUEST_STATUS_OPTIONS
+        : APPLICATION_STATUS_OPTIONS;
 
   // --- 1. 매장 정보 불러오기 ---
   useEffect(() => {
@@ -159,7 +173,10 @@ export default function SubstitutesPage() {
           filterStatus,
         );
         if (res.success && res.data) {
-          setOtherRequests(res.data);
+          const filteredData = res.data.filter(
+            (req) => req.status == "OPEN" || req.status == "PENDING",
+          );
+          setOtherRequests(filteredData);
         }
       } else if (activeTab === "my-requests") {
         const res = await substituteApi.getMyRequests(
@@ -185,7 +202,6 @@ export default function SubstitutesPage() {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, activeTab, sortOrder, filterStatus]);
 
   // 탭 변경 시 필터 초기화
@@ -354,12 +370,6 @@ export default function SubstitutesPage() {
                   대타를 구하거나, 동료의 근무를 대신해줄 수 있습니다.
                 </p>
               </div>
-              <div className="mt-4 flex md:mt-0 md:ml-4">
-                <Button className="gap-2" onClick={openCreateModal}>
-                  <span className="material-icons text-sm">add</span>
-                  대타 요청 등록
-                </Button>
-              </div>
             </div>
 
             {/* 탭 네비게이션과 필터를 한 줄에 배치 (반응형: 모바일은 세로 배치) */}
@@ -390,17 +400,11 @@ export default function SubstitutesPage() {
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
-                  {activeTab === "my-applications"
-                    ? APPLICATION_STATUS_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))
-                    : REQUEST_STATUS_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
+                  {currentStatusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
 
                 <select
@@ -530,7 +534,6 @@ export default function SubstitutesPage() {
 }
 
 // --- Sub Components ---
-
 function TabButton({
   label,
   active,

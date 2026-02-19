@@ -17,7 +17,6 @@ import { storeApi } from "@/lib/api/stores";
 
 type ViewMode = "daily" | "weekly";
 
-// Table 컴포넌트 요구사항(id: string)을 만족하기 위한 확장 타입 정의
 interface DailyTableRow extends TodayAttendanceResponse {
   id: string;
 }
@@ -229,11 +228,8 @@ export default function WorkStatusPage() {
       if (!storeId) return;
       try {
         const res = await storeApi.getStore(storeId);
-        // [수정] 로그 메시지 업데이트
-        console.log("WorkStatus Store Info:", res);
 
         if (res.success && res.data) {
-          // API 응답 구조 대응 ({ success: true, data: { ... } })
           const rawData = res.data as any;
 
           // Case 1: 중첩된 데이터 (res.data.data.name)
