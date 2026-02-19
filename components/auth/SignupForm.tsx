@@ -16,6 +16,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [passwordConfirm, setPasswordConfirm] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +34,16 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
             return;
         }
 
+        if (password !== passwordConfirm) {
+            await Swal.fire({
+                icon: "warning",
+                title: "비밀번호 확인",
+                text: "비밀번호와 비밀번호 확인이 일치하지 않습니다.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
@@ -41,6 +52,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
             const signupResponse = await authApi.signup({
                 email,
                 password,
+                passwordConfirm,
                 name,
                 phoneNumber,
             });
@@ -140,6 +152,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
                     </button>
                 </div>
             </div>
+
+            <Input
+                label="비밀번호 확인"
+                type={showPassword ? "text" : "password"}
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                placeholder="비밀번호를 다시 입력하세요"
+                required
+            />
 
             <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "회원가입 중..." : "회원가입"}
