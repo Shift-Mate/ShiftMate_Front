@@ -15,7 +15,7 @@ import {
 } from "@/lib/api/attendance";
 import { scheduleApi } from "@/lib/api/schedules";
 import { storeApi } from "@/lib/api/stores";
-import { userApi } from "@/lib/api/users"; 
+import { userApi, storeMemberApi } from "@/lib/api/users";
 
 // Shift 타입 확장을 위해 인터페이스 보강
 interface ExtendedShift extends Shift {
@@ -54,21 +54,41 @@ function MySchedulePageContent() {
     const fetchStoreAndProfile = async () => {
       if (!storeId) return;
       try {
-        // 매장 정보 조회
+        // [1] 매장 정보 조회
         const storeRes = await storeApi.getStore(storeId);
         if (storeRes.success && storeRes.data) {
           const rawData = storeRes.data as any;
           setStoreName(rawData.name || rawData.data?.name || `매장 ${storeId}`);
         }
 
-        // 내 매장 프로필 조회 (시급 가져오기)
-        const profileRes = await userApi.getMyStoreProfile(storeId);
+        // [2] 내 유저 정보 조회 (userId 획득)
+        const meRes = await userApi.getMyInfo();
+        const meData = (meRes as any).data?.data || (meRes as any).data;
+        const myUserId = meData?.userId;
 
-        if (profileRes.success && profileRes.data) {
-          const rawData = profileRes.data as any;
-          const realData = rawData.data ? rawData.data : rawData;
+        if (!myUserId) return; // 내 정보를 못 불러오면 중단
 
-          setHourlyWage(realData.hourlyWage || 0);
+        // [3] 매장의 전체 직원 목록 조회
+        const membersRes = await storeMemberApi.getStoreMembers(storeId);
+        const membersData =
+          (membersRes as any).data?.data || (membersRes as any).data || [];
+
+        // [4] 전체 직원 목록에서 내 userId와 일치하는 스토어 멤버 찾기
+        const myStoreMember = membersData.find(
+          (member: any) => member.userId === myUserId,
+        );
+
+        if (myStoreMember) {
+          console.log(
+            "✅ 내 스토어 멤버 정보 매칭 완료! 시급:",
+            myStoreMember.hourlyWage,
+          );
+          // 시급 업데이트 (데이터가 없거나 null이면 0)
+          setHourlyWage(myStoreMember.hourlyWage || 0);
+        } else {
+          console.warn(
+            "⚠️ 현재 매장에 해당 유저가 직원으로 등록되어 있지 않습니다.",
+          );
         }
       } catch (error) {
         console.error("Failed to fetch store info or profile:", error);
@@ -129,7 +149,7 @@ function MySchedulePageContent() {
             const startObj = new Date(item.updatedStartTime);
             const endObj = new Date(item.updatedEndTime);
 
-            // 근무 시간 차이 계산 
+            // 근무 시간 차이 계산
             const diffMs = endObj.getTime() - startObj.getTime();
             const diffMins = Math.floor(diffMs / (1000 * 60));
 
@@ -200,7 +220,7 @@ function MySchedulePageContent() {
     setCurrentDate(new Date());
   };
 
-  // 모달 핸들러 
+  // 모달 핸들러
   const handleOpenModal = () => {
     setIsModalOpen(true);
     const now = new Date();
@@ -227,7 +247,7 @@ function MySchedulePageContent() {
     if (!selectedShiftId) return;
     try {
       const res = await scheduleApi.createSubstituteRequest(storeId, {
-        shiftId: selectedShiftId, 
+        shiftId: selectedShiftId,
         reason: requestReason,
       });
 
