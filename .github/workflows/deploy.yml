@@ -53,7 +53,7 @@ jobs:
           script: |
             set -e
             # 서버 내 docker-compose.yml이 위치한 프로젝트 루트 폴더로 이동
-            cd /home/ubuntu/ShiftMate
+            cd /home/ubuntu
 
             # 최신 프론트엔드 이미지를 pull 받고 docker-compose로 재시작
             docker-compose pull frontend
