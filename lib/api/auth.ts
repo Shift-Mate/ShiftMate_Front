@@ -23,6 +23,15 @@ export type ResetPasswordPayload = {
   newPasswordConfirm: string;
 };
 
+export type SignupEmailVerificationRequestPayload = {
+  email: string;
+};
+
+export type SignupEmailVerificationConfirmPayload = {
+  email: string;
+  code: string;
+};
+
 const getAuthPayload = (data: any): any => {
   if (data && typeof data === "object" && "data" in data) {
     return data.data;
@@ -121,6 +130,18 @@ export const authApi = {
 
   async resetPassword(payload: ResetPasswordPayload): Promise<ApiResponse<string>> {
     return apiClient.post<string>("/auth/password-reset/confirm", payload);
+  },
+
+  async requestSignupEmailVerification(
+    payload: SignupEmailVerificationRequestPayload,
+  ): Promise<ApiResponse<string>> {
+    return apiClient.post<string>("/auth/signup/email-verification/request", payload);
+  },
+
+  async confirmSignupEmailVerification(
+    payload: SignupEmailVerificationConfirmPayload,
+  ): Promise<ApiResponse<string>> {
+    return apiClient.post<string>("/auth/signup/email-verification/confirm", payload);
   },
 
   // async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {

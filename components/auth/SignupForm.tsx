@@ -15,11 +15,124 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
+    const [verifiedEmail, setVerifiedEmail] = useState("");
+    const [emailVerificationCode, setEmailVerificationCode] = useState("");
+    const [isEmailCodeSent, setIsEmailCodeSent] = useState(false);
+    const [isEmailVerified, setIsEmailVerified] = useState(false);
+    const [isEmailCodeSending, setIsEmailCodeSending] = useState(false);
+    const [isEmailVerifying, setIsEmailVerifying] = useState(false);
     const [password, setPassword] = useState("");
     const [passwordConfirm, setPasswordConfirm] = useState("");
     const [phoneNumber, setPhoneNumber] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    const normalizeEmail = (value: string) => value.trim().toLowerCase();
+    const isCurrentEmailVerified =
+        isEmailVerified && verifiedEmail.length > 0 && verifiedEmail === normalizeEmail(email);
+
+    const handleRequestEmailVerification = async () => {
+        const normalizedEmail = normalizeEmail(email);
+        if (!normalizedEmail) {
+            await Swal.fire({
+                icon: "warning",
+                title: "이메일 확인",
+                text: "이메일을 먼저 입력해주세요.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
+        setIsEmailCodeSending(true);
+        try {
+            const response = await authApi.requestSignupEmailVerification({ email: normalizedEmail });
+            if (!response.success) {
+                throw new Error(response.error?.message || "이메일 인증코드 발송에 실패했습니다.");
+            }
+
+            setIsEmailCodeSent(true);
+            setIsEmailVerified(false);
+            setVerifiedEmail("");
+            setEmailVerificationCode("");
+
+            await Swal.fire({
+                icon: "success",
+                title: "인증코드 발송",
+                text: "입력한 이메일로 인증코드를 보냈습니다.",
+                confirmButtonText: "확인",
+            });
+        } catch (error) {
+            await Swal.fire({
+                icon: "error",
+                title: "요청 실패",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "이메일 인증코드 요청 중 오류가 발생했습니다.",
+                confirmButtonText: "확인",
+            });
+        } finally {
+            setIsEmailCodeSending(false);
+        }
+    };
+
+    const handleConfirmEmailVerification = async () => {
+        const normalizedEmail = normalizeEmail(email);
+        if (!normalizedEmail) {
+            await Swal.fire({
+                icon: "warning",
+                title: "이메일 확인",
+                text: "이메일을 먼저 입력해주세요.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
+        if (!emailVerificationCode.trim()) {
+            await Swal.fire({
+                icon: "warning",
+                title: "인증코드 확인",
+                text: "인증코드를 입력해주세요.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
+        setIsEmailVerifying(true);
+        try {
+            const response = await authApi.confirmSignupEmailVerification({
+                email: normalizedEmail,
+                code: emailVerificationCode.trim(),
+            });
+            if (!response.success) {
+                throw new Error(response.error?.message || "이메일 인증 확인에 실패했습니다.");
+            }
+
+            setIsEmailVerified(true);
+            setVerifiedEmail(normalizedEmail);
+
+            await Swal.fire({
+                icon: "success",
+                title: "이메일 인증 완료",
+                text: "이제 회원가입을 진행할 수 있습니다.",
+                confirmButtonText: "확인",
+            });
+        } catch (error) {
+            setIsEmailVerified(false);
+            setVerifiedEmail("");
+            await Swal.fire({
+                icon: "error",
+                title: "인증 실패",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "이메일 인증 확인 중 오류가 발생했습니다.",
+                confirmButtonText: "확인",
+            });
+        } finally {
+            setIsEmailVerifying(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,13 +157,24 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
             return;
         }
 
+        if (!isCurrentEmailVerified) {
+            await Swal.fire({
+                icon: "warning",
+                title: "이메일 인증 필요",
+                text: "회원가입 전에 이메일 인증을 완료해주세요.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
             const name = `${lastName}${firstName}`.trim();
+            const normalizedEmail = normalizeEmail(email);
 
             const signupResponse = await authApi.signup({
-                email,
+                email: normalizedEmail,
                 password,
                 passwordConfirm,
                 name,
@@ -108,12 +232,57 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
                 label="이메일"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                    const nextEmail = e.target.value;
+                    setEmail(nextEmail);
+                    if (verifiedEmail && verifiedEmail !== normalizeEmail(nextEmail)) {
+                        setIsEmailVerified(false);
+                    }
+                }}
                 placeholder="name@company.com"
                 required
             />
 
-              <Input
+            <div className="space-y-2">
+                <div className="flex gap-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        className="flex-1"
+                        onClick={handleRequestEmailVerification}
+                        disabled={isEmailCodeSending || !email.trim()}
+                    >
+                        {isEmailCodeSending ? "발송 중..." : "이메일 인증코드 요청"}
+                    </Button>
+                </div>
+                <div className="flex gap-2">
+                    <Input
+                        label="이메일 인증코드"
+                        type="text"
+                        value={emailVerificationCode}
+                        onChange={(e) => setEmailVerificationCode(e.target.value)}
+                        placeholder="6자리 인증코드 입력"
+                        disabled={!isEmailCodeSent || isCurrentEmailVerified}
+                        className="flex-1"
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="self-end"
+                        onClick={handleConfirmEmailVerification}
+                        disabled={!isEmailCodeSent || isEmailVerifying || isCurrentEmailVerified}
+                    >
+                        {isEmailVerifying ? "확인 중..." : "인증 확인"}
+                    </Button>
+                </div>
+                {isCurrentEmailVerified ? (
+                    <p className="text-sm text-emerald-600">이메일 인증이 완료되었습니다.</p>
+                ) : (
+                    <p className="text-sm text-slate-500">이메일 인증 완료 후 회원가입이 가능합니다.</p>
+                )}
+            </div>
+
+            <Input
                 label="전화번호"
                 type="tel"
                 inputMode="numeric"
@@ -162,7 +331,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
                 required
             />
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading || !isCurrentEmailVerified}>
                 {isLoading ? "회원가입 중..." : "회원가입"}
             </Button>
 
