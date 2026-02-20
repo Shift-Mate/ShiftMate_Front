@@ -1,0 +1,65 @@
+name: Front Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/shiftmate-front
+      FRONT_ENV_FILE: /home/ubuntu/shiftmate-front/.env
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+          platforms: linux/amd64
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          FRONT_ENV_FILE: ${{ env.FRONT_ENV_FILE }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          envs: IMAGE_NAME,FRONT_ENV_FILE
+          script: |
+            set -e
+            docker pull ${IMAGE_NAME}:latest
+            if docker ps -a --format '{{.Names}}' | grep -Eq '^shiftmate-front$'; then
+              docker rm -f shiftmate-front
+            fi
+            test -f ${FRONT_ENV_FILE}
+            docker run -d \
+              --name shiftmate-front \
+              --restart unless-stopped \
+              -p 3000:3000 \
+              --env-file ${FRONT_ENV_FILE} \
+              ${IMAGE_NAME}:latest
