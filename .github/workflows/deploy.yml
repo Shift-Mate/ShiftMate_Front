@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'ShiftMate_Front/**' # ShiftMate_Front 폴더에 변경사항이 있을 때만 실행
   workflow_dispatch:
 
 jobs:
