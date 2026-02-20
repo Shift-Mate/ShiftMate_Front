@@ -1,29 +1,36 @@
 import { apiClient } from "./client";
 import { ApiResponse } from "@/types/api";
 
-export interface MyStoreProfileResDto {
+export interface StoreMemberResDto {
+  id: number;
   storeId: number;
-  storeName: string;
-  storeAlias: string;
-  role: string;      
-  department: string; 
-  hourlyWage: number; 
+  userId: number;
+  role: string;
+  memberRank: string;
+  department: string;
+  hourlyWage: number;
   minHoursPerWeek: number;
-  status: string;   
-  weeklyWorkedMinutes: number;
+  status: string;
+  pinCode: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const userApi = {
-    async getUserInfoByEmail(email: string): Promise<ApiResponse<unknown>> {
-        return apiClient.get<unknown>(
-            `/users/admin/user-info?email=${encodeURIComponent(email)}`
-        );
-    },
+  async getUserInfoByEmail(email: string): Promise<ApiResponse<unknown>> {
+    return apiClient.get<unknown>(
+      `/users/admin/user-info?email=${encodeURIComponent(email)}`,
+    );
+  },
 
-    // 내 매장 프로필 조회
-    async getMyStoreProfile(storeId: string): Promise<ApiResponse<MyStoreProfileResDto>> {
-        return apiClient.get<MyStoreProfileResDto>(
-            `/users/me/stores/${storeId}/profile`
-        );
-    },
+  async getMyInfo(): Promise<ApiResponse<any>> {
+    return apiClient.get(`/users/me`);
+  },
+};
+
+export const storeMemberApi = {
+  // 2. 해당 매장의 전체 직원 목록 조회
+  async getStoreMembers(storeId: string): Promise<ApiResponse<any>> {
+    return apiClient.get(`/stores/${storeId}/store-members`);
+  },
 };
