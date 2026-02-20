@@ -7,9 +7,11 @@ import Swal from "sweetalert2";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { authApi } from "@/lib/api/auth";
+import { resetPasswordText, resolveAuthLang, type AuthLang } from "@/lib/i18n/auth-reset";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+  const [lang, setLang] = useState<AuthLang>("en");
   const [token, setToken] = useState("");
 
   const [newPassword, setNewPassword] = useState("");
@@ -17,10 +19,12 @@ export default function ResetPasswordPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const t = resetPasswordText[lang];
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setToken(params.get("token") ?? "");
+    setLang(resolveAuthLang(navigator.language));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,12 +32,12 @@ export default function ResetPasswordPage() {
     setErrorMessage("");
 
     if (!token) {
-      setErrorMessage("유효한 재설정 링크가 아닙니다. 이메일 링크를 다시 확인해 주세요.");
+      setErrorMessage(t.invalidLink);
       return;
     }
 
     if (newPassword !== newPasswordConfirm) {
-      setErrorMessage("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
+      setErrorMessage(t.mismatch);
       return;
     }
 
@@ -47,14 +51,14 @@ export default function ResetPasswordPage() {
       });
 
       if (!response.success) {
-        throw new Error(response.error?.message || "비밀번호 재설정에 실패했습니다.");
+        throw new Error(response.error?.message || t.resetFailed);
       }
 
       await Swal.fire({
         icon: "success",
-        title: "비밀번호 변경 완료",
-        text: "새 비밀번호로 로그인해 주세요.",
-        confirmButtonText: "확인",
+        title: t.successTitle,
+        text: t.successText,
+        confirmButtonText: t.confirmButton,
       });
 
       router.push("/auth/login");
@@ -62,7 +66,7 @@ export default function ResetPasswordPage() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "비밀번호 재설정 중 오류가 발생했습니다.",
+          : t.resetError,
       );
     } finally {
       setIsLoading(false);
@@ -73,16 +77,16 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">비밀번호 재설정</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{t.title}</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            이메일 링크에서 들어오면 새 비밀번호를 입력해 변경할 수 있습니다.
+            {t.description}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-              새 비밀번호
+              {t.newPasswordLabel}
             </label>
             <div className="relative">
               <input
@@ -106,16 +110,16 @@ export default function ResetPasswordPage() {
 
           <Input
             id="reset-new-password-confirm"
-            label="새 비밀번호 확인"
+            label={t.confirmLabel}
             type={showPassword ? "text" : "password"}
             value={newPasswordConfirm}
             onChange={(e) => setNewPasswordConfirm(e.target.value)}
-            placeholder="새 비밀번호를 다시 입력하세요"
+            placeholder={t.confirmPlaceholder}
             required
           />
 
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "변경 중..." : "비밀번호 변경"}
+            {isLoading ? t.submitting : t.submit}
           </Button>
         </form>
 
@@ -127,7 +131,7 @@ export default function ResetPasswordPage() {
 
         <div className="text-sm text-center">
           <Link href="/auth/login" className="text-primary hover:underline">
-            로그인으로 돌아가기
+            {t.backToLogin}
           </Link>
         </div>
       </div>
