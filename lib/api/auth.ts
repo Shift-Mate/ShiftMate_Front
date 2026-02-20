@@ -13,6 +13,16 @@ export type UpdateProfilePayload = {
   phoneNumber: string;
 };
 
+export type ForgotPasswordPayload = {
+  email: string;
+};
+
+export type ResetPasswordPayload = {
+  token: string;
+  newPassword: string;
+  newPasswordConfirm: string;
+};
+
 const getAuthPayload = (data: any): any => {
   if (data && typeof data === "object" && "data" in data) {
     return data.data;
@@ -103,6 +113,14 @@ export const authApi = {
 
   async signup(data: SignupData): Promise<ApiResponse<SignupResponse>> {
     return apiClient.post<SignupResponse>("/auth/signup", data);
+  },
+
+  async requestPasswordReset(payload: ForgotPasswordPayload): Promise<ApiResponse<string>> {
+    return apiClient.post<string>("/auth/password-reset/request", payload);
+  },
+
+  async resetPassword(payload: ResetPasswordPayload): Promise<ApiResponse<string>> {
+    return apiClient.post<string>("/auth/password-reset/confirm", payload);
   },
 
   // async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
