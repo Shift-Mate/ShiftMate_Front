@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'ShiftMate_Front/**' # ShiftMate_Front 폴더에 변경사항이 있을 때만 실행
   workflow_dispatch:
 
 jobs:
@@ -29,8 +31,8 @@ jobs:
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./ShiftMate_Front # context 경로 지정
+          file: ./ShiftMate_Front/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
@@ -52,23 +54,12 @@ jobs:
           envs: IMAGE_NAME,FRONT_ENV_FILE
           script: |
             set -e
-            docker pull ${IMAGE_NAME}:latest
-            if docker ps -a --format '{{.Names}}' | grep -Eq '^shiftmate-front$'; then
-              docker rm -f shiftmate-front
-            fi
-            test -f ${FRONT_ENV_FILE}
-            docker run -d \
-              --name shiftmate-front \
-              --restart unless-stopped \
-              -p 3000:3000 \
-              --env-file ${FRONT_ENV_FILE} \
-              ${IMAGE_NAME}:latest
+            # 서버 내 docker-compose.yml이 위치한 프로젝트 루트 폴더로 이동
+            cd /home/ubuntu/ShiftMate
 
-            # Remove old tags for this service image, keep latest.
-            docker images "${IMAGE_NAME}" --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
-              | awk '$1 !~ /:latest$/ {print $2}' \
-              | sort -u \
-              | xargs -r docker rmi || true
-
-            # Remove dangling images left after rebuilds.
-            docker image prune -f
+            # 최신 프론트엔드 이미지를 pull 받고 docker-compose로 재시작
+            docker-compose pull frontend
+            docker-compose up -d frontend
+            
+            # 사용하지 않는 도커 이미지 정리
+            docker image prune -af
