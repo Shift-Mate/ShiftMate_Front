@@ -56,8 +56,8 @@ jobs:
             cd /home/ubuntu
 
             # 최신 프론트엔드 이미지를 pull 받고 docker-compose로 재시작
-            docker-compose pull frontend
-            docker-compose up -d frontend
+            docker compose pull frontend
+            docker compose up -d frontend
             
             # 사용하지 않는 도커 이미지 정리
             docker image prune -af
