@@ -12,8 +12,7 @@ interface SignupFormProps {
 }
 
 export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [verifiedEmail, setVerifiedEmail] = useState("");
     const [emailVerificationCode, setEmailVerificationCode] = useState("");
@@ -170,14 +169,24 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
         setIsLoading(true);
 
         try {
-            const name = `${lastName}${firstName}`.trim();
+            const normalizedName = name.trim();
             const normalizedEmail = normalizeEmail(email);
+
+            if (!normalizedName) {
+                await Swal.fire({
+                    icon: "warning",
+                    title: "이름 확인",
+                    text: "이름을 입력해주세요.",
+                    confirmButtonText: "확인",
+                });
+                return;
+            }
 
             const signupResponse = await authApi.signup({
                 email: normalizedEmail,
                 password,
                 passwordConfirm,
-                name,
+                name: normalizedName,
                 phoneNumber,
             });
 
@@ -209,24 +218,14 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-                <Input
-                    label="이름"
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="홍"
-                    required
-                />
-                <Input
-                    label="성"
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="길동"
-                    required
-                />
-            </div>
+            <Input
+                label="이름"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="홍길동"
+                required
+            />
 
             <Input
                 label="이메일"

@@ -2,6 +2,8 @@ import { apiClient } from "./client";
 import { User, LoginCredentials, SignupData, AuthResponse, SignupResponse } from "@/types/auth";
 import { ApiResponse } from "@/types/api";
 
+export type SocialProvider = "kakao" | "google";
+
 export type ChangePasswordPayload = {
   currentPassword: string;
   newPassword: string;
@@ -90,6 +92,29 @@ const getUserDisplayName = (data: unknown): string | undefined => {
   return undefined;
 };
 
+const applyAuthTokens = (data: unknown): void => {
+  const payload = getAuthPayload(data);
+  const accessToken = getAccessToken(payload);
+
+  if (accessToken) {
+    apiClient.setToken(accessToken);
+  }
+
+  if (typeof window !== "undefined") {
+    if (payload && typeof payload === "object" && "refreshToken" in payload) {
+      const refreshToken = (payload as { refreshToken?: unknown }).refreshToken;
+      if (typeof refreshToken === "string" && refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
+      }
+    }
+
+    const displayName = getUserDisplayName(payload);
+    if (displayName) {
+      localStorage.setItem("auth_user_name", displayName);
+    }
+  }
+};
+
 export const authApi = {
   async login(
     credentials: LoginCredentials,
@@ -100,21 +125,23 @@ export const authApi = {
     );
 
     if (response.success && response.data) {
-      const payload = getAuthPayload(response.data);
-      const accessToken = getAccessToken(payload);
+      applyAuthTokens(response.data);
+    }
 
-      if (accessToken) {
-        apiClient.setToken(accessToken);
-      }
-      if (typeof window !== "undefined") {
-        if (payload?.refreshToken) {
-          localStorage.setItem("refresh_token", payload.refreshToken);
-        }
-        const displayName = getUserDisplayName(payload);
-        if (displayName) {
-          localStorage.setItem("auth_user_name", displayName);
-        }
-      }
+    return response;
+  },
+
+  async socialLogin(
+    provider: SocialProvider,
+    code: string,
+  ): Promise<ApiResponse<AuthResponse>> {
+    const response = await apiClient.post<AuthResponse>(
+      `/auth/social/${provider}`,
+      { code },
+    );
+
+    if (response.success && response.data) {
+      applyAuthTokens(response.data);
     }
 
     return response;
