@@ -1,6 +1,14 @@
 import { apiClient } from "./client";
-import { User, LoginCredentials, SignupData, AuthResponse, SignupResponse } from "@/types/auth";
+import {
+  User,
+  LoginCredentials,
+  SignupData,
+  AuthResponse,
+  SignupResponse,
+} from "@/types/auth";
 import { ApiResponse } from "@/types/api";
+
+export type SocialProvider = "kakao" | "google";
 
 export type ChangePasswordPayload = {
   currentPassword: string;
@@ -90,6 +98,29 @@ const getUserDisplayName = (data: unknown): string | undefined => {
   return undefined;
 };
 
+const applyAuthTokens = (data: unknown): void => {
+  const payload = getAuthPayload(data);
+  const accessToken = getAccessToken(payload);
+
+  if (accessToken) {
+    apiClient.setToken(accessToken);
+  }
+
+  if (typeof window !== "undefined") {
+    if (payload && typeof payload === "object" && "refreshToken" in payload) {
+      const refreshToken = (payload as { refreshToken?: unknown }).refreshToken;
+      if (typeof refreshToken === "string" && refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
+      }
+    }
+
+    const displayName = getUserDisplayName(payload);
+    if (displayName) {
+      localStorage.setItem("auth_user_name", displayName);
+    }
+  }
+};
+
 export const authApi = {
   async login(
     credentials: LoginCredentials,
@@ -100,21 +131,23 @@ export const authApi = {
     );
 
     if (response.success && response.data) {
-      const payload = getAuthPayload(response.data);
-      const accessToken = getAccessToken(payload);
+      applyAuthTokens(response.data);
+    }
 
-      if (accessToken) {
-        apiClient.setToken(accessToken);
-      }
-      if (typeof window !== "undefined") {
-        if (payload?.refreshToken) {
-          localStorage.setItem("refresh_token", payload.refreshToken);
-        }
-        const displayName = getUserDisplayName(payload);
-        if (displayName) {
-          localStorage.setItem("auth_user_name", displayName);
-        }
-      }
+    return response;
+  },
+
+  async socialLogin(
+    provider: SocialProvider,
+    code: string,
+  ): Promise<ApiResponse<AuthResponse>> {
+    const response = await apiClient.post<AuthResponse>(
+      `/auth/social/${provider}`,
+      { code },
+    );
+
+    if (response.success && response.data) {
+      applyAuthTokens(response.data);
     }
 
     return response;
@@ -124,24 +157,34 @@ export const authApi = {
     return apiClient.post<SignupResponse>("/auth/signup", data);
   },
 
-  async requestPasswordReset(payload: ForgotPasswordPayload): Promise<ApiResponse<string>> {
+  async requestPasswordReset(
+    payload: ForgotPasswordPayload,
+  ): Promise<ApiResponse<string>> {
     return apiClient.post<string>("/auth/password-reset/request", payload);
   },
 
-  async resetPassword(payload: ResetPasswordPayload): Promise<ApiResponse<string>> {
+  async resetPassword(
+    payload: ResetPasswordPayload,
+  ): Promise<ApiResponse<string>> {
     return apiClient.post<string>("/auth/password-reset/confirm", payload);
   },
 
   async requestSignupEmailVerification(
     payload: SignupEmailVerificationRequestPayload,
   ): Promise<ApiResponse<string>> {
-    return apiClient.post<string>("/auth/signup/email-verification/request", payload);
+    return apiClient.post<string>(
+      "/auth/signup/email-verification/request",
+      payload,
+    );
   },
 
   async confirmSignupEmailVerification(
     payload: SignupEmailVerificationConfirmPayload,
   ): Promise<ApiResponse<string>> {
-    return apiClient.post<string>("/auth/signup/email-verification/confirm", payload);
+    return apiClient.post<string>(
+      "/auth/signup/email-verification/confirm",
+      payload,
+    );
   },
 
   // async signup(data: SignupData): Promise<ApiResponse<AuthResponse>> {
@@ -182,20 +225,29 @@ export const authApi = {
     return apiClient.get<User>("/users/me");
   },
 
-  async updateMyProfile(payload: UpdateProfilePayload): Promise<ApiResponse<unknown>> {
+  async updateMyProfile(
+    payload: UpdateProfilePayload,
+  ): Promise<ApiResponse<unknown>> {
     return apiClient.patch<unknown>("/users/me", payload);
   },
 
-  async changePassword(payload: ChangePasswordPayload): Promise<ApiResponse<string>> {
+  async changePassword(
+    payload: ChangePasswordPayload,
+  ): Promise<ApiResponse<string>> {
     return apiClient.patch<string>("/users/me/password", payload);
   },
 
-  async refreshToken(): Promise<ApiResponse<{ accessToken: string; refreshToken: string }>> {
-    const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refresh_token") : null;
-    const response = await apiClient.post<{ accessToken: string; refreshToken: string }>(
-      "/auth/reissue",
-      { refreshToken: refreshToken ?? "" },
-    );
+  async refreshToken(): Promise<
+    ApiResponse<{ accessToken: string; refreshToken: string }>
+  > {
+    const refreshToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("refresh_token")
+        : null;
+    const response = await apiClient.post<{
+      accessToken: string;
+      refreshToken: string;
+    }>("/auth/reissue", { refreshToken: refreshToken ?? "" });
 
     if (response.success && response.data) {
       const payload = getAuthPayload(response.data);
@@ -208,11 +260,19 @@ export const authApi = {
       if (accessToken) {
         apiClient.setToken(accessToken);
       }
-      if (typeof window !== "undefined" && typeof nextRefreshToken === "string" && nextRefreshToken) {
+      if (
+        typeof window !== "undefined" &&
+        typeof nextRefreshToken === "string" &&
+        nextRefreshToken
+      ) {
         localStorage.setItem("refresh_token", nextRefreshToken);
       }
     }
 
     return response;
+  },
+
+  async generateOtp(): Promise<ApiResponse<string>> {
+    return apiClient.post<string>("/users/my/otp");
   },
 };

@@ -6,7 +6,7 @@ import { ApiResponse } from "@/types/api";
 // 1. 출퇴근 요청 (AttendanceReqDto)
 export interface AttendanceRequest {
   assignmentId: number;
-  pinCode: string;
+  otp: string;
 }
 
 // 2. 일간/오늘 근태 응답 (TodayAttendanceResDto)
