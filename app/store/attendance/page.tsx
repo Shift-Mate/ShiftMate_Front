@@ -13,7 +13,7 @@ function AttendancePageContent() {
 
   // --- State 관리 ---
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [pinCode, setPinCode] = useState("");
+  const [otp, setOtp] = useState("");
   const [selectedAssignmentId, setSelectedAssignmentId] = useState("");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<"success" | "error">(
@@ -96,6 +96,8 @@ function AttendancePageContent() {
 
       switch (schedule.currentWorkStatus) {
         case "WORKING":
+          statusLabel = " (근무중)";
+          break;
         case "OFFWORK":
           statusLabel = " (퇴근완료)";
           isDisabled = true; // 이미 퇴근한 경우 선택 불가
@@ -117,18 +119,18 @@ function AttendancePageContent() {
 
   // --- 이벤트 핸들러 ---
   const handleNumberClick = (num: string) => {
-    if (pinCode.length < 4) setPinCode((prev) => prev + num);
+    if (otp.length < 6) setOtp((prev) => prev + num);
     // 입력 시 메시지 초기화
     if (message) setMessage("");
   };
 
   const handleClear = () => {
-    setPinCode("");
+    setOtp("");
     setMessage("");
   };
 
   const handleBackspace = () => {
-    setPinCode((prev) => prev.slice(0, -1));
+    setOtp((prev) => prev.slice(0, -1));
     setMessage("");
   };
 
@@ -138,9 +140,9 @@ function AttendancePageContent() {
       setMessage("근무자를 먼저 선택해 주세요.");
       return;
     }
-    if (pinCode.length !== 4) {
+    if (otp.length !== 6) {
       setMessageTone("error");
-      setMessage("PIN 4자리를 입력해 주세요.");
+      setMessage("OTP 6자리를 입력해 주세요.");
       return;
     }
 
@@ -151,7 +153,7 @@ function AttendancePageContent() {
       // 요청 보내기
       const response = await attendanceApi.clock(storeId, {
         assignmentId: Number(selectedAssignmentId),
-        pinCode: pinCode,
+        otp: otp,
       });
 
       // ApiClient 처리 방식에 따라 성공 여부 판단
@@ -166,7 +168,7 @@ function AttendancePageContent() {
         setMessage(successMessage);
 
         // 성공 후 초기화 및 데이터 갱신
-        setPinCode("");
+        setOtp("");
         setSelectedAssignmentId("");
         await fetchSchedules(); // 상태 업데이트 반영
       } else {
@@ -177,11 +179,13 @@ function AttendancePageContent() {
           (response.data as any)?.message ||
           "처리 중 오류가 발생했습니다.";
         setMessage(errorMsg);
+        setOtp("");
       }
     } catch (e: any) {
       setMessageTone("error");
       setMessage("서버 통신 오류가 발생했습니다.");
       console.error(e);
+      setOtp("");
     } finally {
       setIsLoading(false);
     }
@@ -271,14 +275,14 @@ function AttendancePageContent() {
               <div className="w-full max-w-md mx-auto">
                 <div className="mb-6 text-center">
                   <label className="block text-sm font-medium text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wider">
-                    Enter Staff PIN
+                    Enter Staff OTP
                   </label>
                   <div className="flex justify-center gap-4 mb-2 h-10 items-center">
-                    {[0, 1, 2, 3].map((index) => (
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
                       <div
                         key={index}
                         className={`w-4 h-4 rounded-full transition-colors duration-200 ${
-                          pinCode.length > index
+                          otp.length > index
                             ? "bg-primary"
                             : "bg-slate-200 dark:bg-slate-600"
                         }`}
@@ -332,7 +336,7 @@ function AttendancePageContent() {
                   className="w-full h-20 text-xl font-bold"
                   onClick={handleAttendanceAction}
                   disabled={
-                    !selectedAssignmentId || pinCode.length !== 4 || isLoading
+                    !selectedAssignmentId || otp.length !== 6 || isLoading
                   }
                 >
                   {isLoading ? "처리중..." : "출근 / 퇴근 처리"}
