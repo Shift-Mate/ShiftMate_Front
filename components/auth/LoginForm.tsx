@@ -13,7 +13,11 @@ export const LoginForm: React.FC = () => {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSocialLoading, setIsSocialLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+
+    const kakaoClientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
+    const kakaoRedirectUri = process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,6 +45,24 @@ export const LoginForm: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleKakaoLogin = () => {
+        setErrorMessage("");
+
+        // 인가코드 요청 URL 생성에 필요한 값이 없으면 즉시 안내
+        if (!kakaoClientId || !kakaoRedirectUri) {
+            setErrorMessage("카카오 로그인 설정이 누락되었습니다. NEXT_PUBLIC_KAKAO_* 환경변수를 확인해주세요.");
+            return;
+        }
+
+        setIsSocialLoading(true);
+        const authorizeUrl =
+            `https://kauth.kakao.com/oauth/authorize?response_type=code` +
+            `&client_id=${encodeURIComponent(kakaoClientId)}` +
+            `&redirect_uri=${encodeURIComponent(kakaoRedirectUri)}`;
+
+        window.location.href = authorizeUrl;
     };
 
     return (
@@ -108,7 +130,25 @@ export const LoginForm: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                <Button variant="secondary" type="button" className="gap-2">
+                <Button
+                    variant="secondary"
+                    type="button"
+                    className="gap-2"
+                    disabled={isSocialLoading}
+                    onClick={handleKakaoLogin}
+                >
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-300 text-[10px] font-black text-black">
+                        K
+                    </span>
+                    {isSocialLoading ? "카카오 이동 중..." : "Kakao"}
+                </Button>
+                <Button
+                    variant="secondary"
+                    type="button"
+                    className="gap-2"
+                    disabled
+                    title="구글 로그인은 추후 연동 예정입니다."
+                >
                     <svg
                         className="h-4 w-4"
                         viewBox="0 0 488 512"
@@ -116,13 +156,7 @@ export const LoginForm: React.FC = () => {
                     >
                         <path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z" />
                     </svg>
-                    Google
-                </Button>
-                <Button variant="secondary" type="button" className="gap-2">
-                    <svg className="h-4 w-4" viewBox="0 0 448 512" fill="currentColor">
-                        <path d="M0 32h214.6v214.6H0V32zm233.4 0H448v214.6H233.4V32zM0 265.4h214.6V480H0V265.4zm233.4 0H448V480H233.4V265.4z" />
-                    </svg>
-                    Microsoft
+                    Google (준비중)
                 </Button>
             </div>
 
