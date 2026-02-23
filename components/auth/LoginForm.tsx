@@ -17,7 +17,10 @@ export const LoginForm: React.FC = () => {
     const [errorMessage, setErrorMessage] = useState("");
 
     const kakaoClientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
-    const kakaoRedirectUri = process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI;
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const oauthRedirectUri =
+        process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI ||
+        process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -51,8 +54,8 @@ export const LoginForm: React.FC = () => {
         setErrorMessage("");
 
         // 인가코드 요청 URL 생성에 필요한 값이 없으면 즉시 안내
-        if (!kakaoClientId || !kakaoRedirectUri) {
-            setErrorMessage("카카오 로그인 설정이 누락되었습니다. NEXT_PUBLIC_KAKAO_* 환경변수를 확인해주세요.");
+        if (!kakaoClientId || !oauthRedirectUri) {
+            setErrorMessage("카카오 로그인 설정이 누락되었습니다. NEXT_PUBLIC_KAKAO_CLIENT_ID / NEXT_PUBLIC_OAUTH_REDIRECT_URI를 확인해주세요.");
             return;
         }
 
@@ -60,7 +63,29 @@ export const LoginForm: React.FC = () => {
         const authorizeUrl =
             `https://kauth.kakao.com/oauth/authorize?response_type=code` +
             `&client_id=${encodeURIComponent(kakaoClientId)}` +
-            `&redirect_uri=${encodeURIComponent(kakaoRedirectUri)}`;
+            `&redirect_uri=${encodeURIComponent(oauthRedirectUri)}` +
+            `&state=${encodeURIComponent("kakao")}`;
+
+        window.location.href = authorizeUrl;
+    };
+
+    const handleGoogleLogin = () => {
+        setErrorMessage("");
+
+        if (!googleClientId || !oauthRedirectUri) {
+            setErrorMessage(
+                "구글 로그인 설정이 누락되었습니다. NEXT_PUBLIC_GOOGLE_CLIENT_ID / NEXT_PUBLIC_OAUTH_REDIRECT_URI를 확인해주세요."
+            );
+            return;
+        }
+
+        setIsSocialLoading(true);
+        const authorizeUrl =
+            `https://accounts.google.com/o/oauth2/v2/auth?response_type=code` +
+            `&client_id=${encodeURIComponent(googleClientId)}` +
+            `&redirect_uri=${encodeURIComponent(oauthRedirectUri)}` +
+            `&scope=${encodeURIComponent("openid email profile")}` +
+            `&state=${encodeURIComponent("google")}`;
 
         window.location.href = authorizeUrl;
     };
@@ -146,8 +171,8 @@ export const LoginForm: React.FC = () => {
                     variant="secondary"
                     type="button"
                     className="gap-2"
-                    disabled
-                    title="구글 로그인은 추후 연동 예정입니다."
+                    disabled={isSocialLoading}
+                    onClick={handleGoogleLogin}
                 >
                     <svg
                         className="h-4 w-4"
@@ -156,7 +181,7 @@ export const LoginForm: React.FC = () => {
                     >
                         <path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z" />
                     </svg>
-                    Google (준비중)
+                    {isSocialLoading ? "구글 이동 중..." : "Google"}
                 </Button>
             </div>
 

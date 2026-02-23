@@ -25,6 +25,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
     const [phoneNumber, setPhoneNumber] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSocialLoading, setIsSocialLoading] = useState(false);
+
+    const kakaoClientId = process.env.NEXT_PUBLIC_KAKAO_CLIENT_ID;
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    const oauthRedirectUri =
+        process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI ||
+        process.env.NEXT_PUBLIC_KAKAO_REDIRECT_URI;
 
     const normalizeEmail = (value: string) => value.trim().toLowerCase();
     const isCurrentEmailVerified =
@@ -216,6 +223,63 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
         }
     };
 
+    const handleSocialLogin = (provider: "kakao" | "google") => {
+        setIsSocialLoading(true);
+
+        if (!oauthRedirectUri) {
+            setIsSocialLoading(false);
+            void Swal.fire({
+                icon: "error",
+                title: "설정 확인",
+                text: "NEXT_PUBLIC_OAUTH_REDIRECT_URI 환경변수를 확인해주세요.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
+        if (provider === "kakao") {
+            if (!kakaoClientId) {
+                setIsSocialLoading(false);
+                void Swal.fire({
+                    icon: "error",
+                    title: "설정 확인",
+                    text: "NEXT_PUBLIC_KAKAO_CLIENT_ID 환경변수를 확인해주세요.",
+                    confirmButtonText: "확인",
+                });
+                return;
+            }
+
+            const kakaoAuthorizeUrl =
+                `https://kauth.kakao.com/oauth/authorize?response_type=code` +
+                `&client_id=${encodeURIComponent(kakaoClientId)}` +
+                `&redirect_uri=${encodeURIComponent(oauthRedirectUri)}` +
+                `&state=${encodeURIComponent("kakao")}`;
+
+            window.location.href = kakaoAuthorizeUrl;
+            return;
+        }
+
+        if (!googleClientId) {
+            setIsSocialLoading(false);
+            void Swal.fire({
+                icon: "error",
+                title: "설정 확인",
+                text: "NEXT_PUBLIC_GOOGLE_CLIENT_ID 환경변수를 확인해주세요.",
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
+        const googleAuthorizeUrl =
+            `https://accounts.google.com/o/oauth2/v2/auth?response_type=code` +
+            `&client_id=${encodeURIComponent(googleClientId)}` +
+            `&redirect_uri=${encodeURIComponent(oauthRedirectUri)}` +
+            `&scope=${encodeURIComponent("openid email profile")}` +
+            `&state=${encodeURIComponent("google")}`;
+
+        window.location.href = googleAuthorizeUrl;
+    };
+
     return (
         <form onSubmit={handleSubmit} className="space-y-5">
             <Input
@@ -346,17 +410,29 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-                <Button variant="secondary" type="button" className="gap-2">
+                <Button
+                    variant="secondary"
+                    type="button"
+                    className="gap-2"
+                    disabled={isSocialLoading}
+                    onClick={() => handleSocialLogin("kakao")}
+                >
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-yellow-300 text-[10px] font-black text-black">
+                        K
+                    </span>
+                    {isSocialLoading ? "카카오 이동 중..." : "Kakao"}
+                </Button>
+                <Button
+                    variant="secondary"
+                    type="button"
+                    className="gap-2"
+                    disabled={isSocialLoading}
+                    onClick={() => handleSocialLogin("google")}
+                >
                     <svg className="h-4 w-4" viewBox="0 0 488 512" fill="currentColor">
                         <path d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z" />
                     </svg>
-                    Google
-                </Button>
-                <Button variant="secondary" type="button" className="gap-2">
-                    <svg className="h-4 w-4" viewBox="0 0 448 512" fill="currentColor">
-                        <path d="M0 32h214.6v214.6H0V32zm233.4 0H448v214.6H233.4V32zM0 265.4h214.6V480H0V265.4zm233.4 0H448V480H233.4V265.4z" />
-                    </svg>
-                    Microsoft
+                    {isSocialLoading ? "구글 이동 중..." : "Google"}
                 </Button>
             </div>
 

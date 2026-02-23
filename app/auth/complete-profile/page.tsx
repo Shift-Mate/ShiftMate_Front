@@ -16,6 +16,13 @@ export default function CompleteProfilePage() {
   const [errorMessage, setErrorMessage] = useState("");
 
   const normalizedPhone = useMemo(() => onlyDigits(phoneNumber), [phoneNumber]);
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowedControlKeys = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
+    if (allowedControlKeys.includes(e.key)) return;
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,8 +34,8 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    if (!/^[0-9]{10,11}$/.test(normalizedPhone)) {
-      setErrorMessage("전화번호는 숫자 10~11자리여야 합니다.");
+    if (!/^[0-9]{11}$/.test(normalizedPhone)) {
+      setErrorMessage("전화번호는 숫자 11자리여야 합니다.");
       return;
     }
 
@@ -79,7 +86,11 @@ export default function CompleteProfilePage() {
             label="전화번호"
             type="tel"
             value={phoneNumber}
-            onChange={(e) => setPhoneNumber(onlyDigits(e.target.value))}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            maxLength={11}
+            onKeyDown={handlePhoneKeyDown}
+            onChange={(e) => setPhoneNumber(onlyDigits(e.target.value).slice(0, 11))}
             disabled={isSubmitting}
             placeholder="01012345678"
             required
