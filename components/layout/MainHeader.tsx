@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Swal from "sweetalert2";
 import { authApi } from "@/lib/api/auth";
 import { storeApi } from "@/lib/api/stores";
 
@@ -154,6 +155,49 @@ const getDisplayNameFromToken = (token: string): string | null => {
     return null;
 };
 
+const readString = (value: unknown): string | null => {
+    if (typeof value !== "string") {
+        return null;
+    }
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+};
+
+const getDisplayNameFromUserResponse = (value: unknown): string | null => {
+    if (!value || typeof value !== "object") {
+        return null;
+    }
+
+    const record = value as Record<string, unknown>;
+    const name =
+        readString(record.name) ??
+        readString(record.userName) ??
+        readString(record.username) ??
+        readString(record.nickname);
+
+    if (name) {
+        return name;
+    }
+
+    const nestedUser = record.user;
+    if (nestedUser && typeof nestedUser === "object") {
+        const nested = getDisplayNameFromUserResponse(nestedUser);
+        if (nested) {
+            return nested;
+        }
+    }
+
+    const nestedData = record.data;
+    if (nestedData && typeof nestedData === "object") {
+        const nested = getDisplayNameFromUserResponse(nestedData);
+        if (nested) {
+            return nested;
+        }
+    }
+
+    return null;
+};
+
 const getRoleLabel = (role: string): string => {
     switch (role.toUpperCase()) {
         case "OWNER":
@@ -184,21 +228,42 @@ const MainHeaderContent: React.FC = () => {
         const token = localStorage.getItem("auth_token");
         setIsLoggedIn(!!token);
 
-        if (token) {
-            const cachedDisplayName = localStorage.getItem("auth_user_name");
-            if (cachedDisplayName && cachedDisplayName.trim()) {
-                setDisplayName(cachedDisplayName.trim());
+        if (!token) {
+            setDisplayName("사용자");
+            return;
+        }
+
+        const cachedDisplayName = localStorage.getItem("auth_user_name");
+        if (cachedDisplayName && cachedDisplayName.trim()) {
+            setDisplayName(cachedDisplayName.trim());
+            return;
+        }
+
+        const tokenDisplayName = getDisplayNameFromToken(token);
+        if (tokenDisplayName) {
+            setDisplayName(tokenDisplayName);
+        }
+
+        let cancelled = false;
+        const loadDisplayName = async () => {
+            const response = await authApi.getCurrentUser();
+            if (!response.success || cancelled) {
                 return;
             }
 
-            const tokenDisplayName = getDisplayNameFromToken(token);
-            if (tokenDisplayName) {
-                setDisplayName(tokenDisplayName);
-                localStorage.setItem("auth_user_name", tokenDisplayName);
+            const serverDisplayName = getDisplayNameFromUserResponse(response.data as unknown);
+            if (!serverDisplayName) {
+                return;
             }
-        } else {
-            setDisplayName("사용자");
-        }
+
+            setDisplayName(serverDisplayName);
+            localStorage.setItem("auth_user_name", serverDisplayName);
+        };
+
+        void loadDisplayName();
+        return () => {
+            cancelled = true;
+        };
     }, [pathname]);
 
     useEffect(() => {
@@ -225,7 +290,11 @@ const MainHeaderContent: React.FC = () => {
             setStoreRoleLabel(null);
             setDisplayName("사용자");
             setIsProfileMenuOpen(false);
-            window.alert("로그아웃되었습니다.");
+            await Swal.fire({
+                icon: "success",
+                title: "로그아웃되었습니다.",
+                confirmButtonText: "확인",
+            });
             router.push("/");
         }
     };
