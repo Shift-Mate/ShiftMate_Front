@@ -6,6 +6,7 @@ import { MainHeader } from "@/components/layout/MainHeader";
 import { StoreCard } from "@/components/domain/StoreCard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardBody } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 import { Store } from "@/types/store";
 import { storeApi } from "@/lib/api/stores";
 
@@ -30,6 +31,8 @@ type StoreResDto = {
     createdAt: string;
     updatedAt: string;
     monthlySales: number | null;
+    location: string | null;
+    storeMemberCount: number;
 };
 
 const TOKEN_ERROR_CODES = new Set([
@@ -77,10 +80,12 @@ const mapStoreDtoToCardStore = (store: StoreResDto): Store => ({
     id: String(store.id),
     name: store.name,
     code: store.alias ?? `STORE-${store.id}`,
-    location: "미설정",
+    location: store.location?.trim() ? store.location : "미설정",
     status: isOpenNow(store.openTime, store.closeTime) ? "open" : "closed",
-    activeStaff: 0,
+    activeStaff: store.storeMemberCount,
     shiftCoverage: 0,
+    openTime: store.openTime,
+    closeTime: store.closeTime,
 });
 
 const isStoreDto = (value: unknown): value is StoreResDto => {
@@ -95,7 +100,9 @@ const isStoreDto = (value: unknown): value is StoreResDto => {
         typeof candidate.name === "string" &&
         (typeof candidate.alias === "string" || candidate.alias === null) &&
         typeof candidate.openTime === "string" &&
-        typeof candidate.closeTime === "string"
+        typeof candidate.closeTime === "string" &&
+        (typeof candidate.location === "string" || candidate.location === null) &&
+        typeof candidate.storeMemberCount === "number"
     );
 };
 
@@ -125,6 +132,8 @@ export default function DashboardPage() {
     const [stores, setStores] = useState<Store[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const fetchStores = async () => {
@@ -199,6 +208,37 @@ export default function DashboardPage() {
         () => stores.reduce((sum, store) => sum + store.activeStaff, 0),
         [stores]
     );
+
+    const handleDeleteStore = async () => {
+        if (!storeToDelete || isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+        const response = await storeApi.deleteStore(storeToDelete.id);
+
+        if (!response.success) {
+            const code = response.error ? getErrorCode(response.error) : "";
+            if (code === "STORE_NOT_FOUND") {
+                setErrorMessage("가게 정보를 찾을 수 없습니다.");
+            } else if (code === "STORE_ACCESS_DENIED") {
+                setErrorMessage("매장 삭제 권한이 없습니다.");
+            } else if (code === "401" || TOKEN_ERROR_CODES.has(code)) {
+                setErrorMessage("인증이 만료되었거나 유효하지 않습니다. 다시 로그인해 주세요.");
+            } else {
+                setErrorMessage(response.error?.message ?? "매장 삭제에 실패했습니다.");
+            }
+            setIsDeleting(false);
+            setStoreToDelete(null);
+            return;
+        }
+
+        setStores((prevStores) =>
+            prevStores.filter((store) => store.id !== storeToDelete.id)
+        );
+        setIsDeleting(false);
+        setStoreToDelete(null);
+    };
 
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
@@ -301,6 +341,8 @@ export default function DashboardPage() {
                                         key={store.id}
                                         store={store}
                                         href={`/store?storeId=${store.id}&role=manager`}
+                                        onDelete={setStoreToDelete}
+                                        isDeleting={isDeleting && storeToDelete?.id === store.id}
                                     />
                                 ))}
 
@@ -325,6 +367,40 @@ export default function DashboardPage() {
                     </div>
                 </main>
             </div>
+
+            <Modal
+                isOpen={storeToDelete !== null}
+                onClose={() => {
+                    if (!isDeleting) {
+                        setStoreToDelete(null);
+                    }
+                }}
+                title="매장 삭제 확인"
+                size="sm"
+            >
+                <div className="space-y-5">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                        정말 <span className="font-semibold">{storeToDelete?.name}</span> 매장을
+                        삭제하시겠습니까? 삭제는 소프트 삭제로 처리되며, 목록에서 제외됩니다.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setStoreToDelete(null)}
+                            disabled={isDeleting}
+                        >
+                            취소
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={handleDeleteStore}
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? "삭제 중..." : "삭제"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
