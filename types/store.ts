@@ -7,6 +7,8 @@ export interface Store {
     status: StoreStatus;
     activeStaff: number;
     shiftCoverage: number;
+    openTime?: string;
+    closeTime?: string;
     image?: string;
 }
 

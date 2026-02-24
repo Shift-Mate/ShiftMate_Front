@@ -1,12 +1,14 @@
 import React from "react";
 import Link from "next/link";
-import { Card, CardBody, CardFooter } from "@/components/ui/Card";
+import { CardBody, CardFooter } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Store, StoreStatus } from "@/types/store";
 
 interface StoreCardProps {
     store: Store;
     href?: string;
+    onDelete?: (store: Store) => void;
+    isDeleting?: boolean;
 }
 
 const getStatusVariant = (
@@ -35,9 +37,18 @@ const getStatusLabel = (status: StoreStatus): string => {
     }
 };
 
-export const StoreCard: React.FC<StoreCardProps> = ({ store, href }) => {
+export const StoreCard: React.FC<StoreCardProps> = ({
+    store,
+    href,
+    onDelete,
+    isDeleting = false,
+}) => {
     const statusVariant = getStatusVariant(store.status);
     const statusLabel = getStatusLabel(store.status);
+    const businessHours =
+        store.openTime && store.closeTime
+            ? `${store.openTime} - ${store.closeTime}`
+            : "영업시간 미설정";
 
     return (
         <Link
@@ -90,6 +101,10 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, href }) => {
                         </div>
                     </div>
 
+                    <div className="flex items-center text-slate-600 dark:text-slate-400 text-sm">
+                        <span className="material-icons text-primary text-base mr-2">schedule</span>
+                        {businessHours}
+                    </div>
                 </div>
             </CardBody>
 
@@ -99,9 +114,21 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, href }) => {
                     <span className="material-icons text-sm mr-1">location_on</span>{" "}
                     {store.location}
                 </span>
-                <span className="text-primary text-sm font-medium group-hover:underline">
-                    관리 →
-                </span>
+                <button
+                    type="button"
+                    onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!isDeleting) {
+                            onDelete?.(store);
+                        }
+                    }}
+                    className="text-red-500 text-sm font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isDeleting}
+                    aria-label={`${store.name} 삭제`}
+                >
+                    {isDeleting ? "삭제 중..." : "삭제"}
+                </button>
             </CardFooter>
         </Link>
     );
