@@ -413,7 +413,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
                 <Button
                     variant="secondary"
                     type="button"
-                    className="gap-2"
+                    className="gap-2 cursor-pointer"
                     disabled={isSocialLoading}
                     onClick={() => handleSocialLogin("kakao")}
                 >
@@ -425,7 +425,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onSignupSuccess }) => {
                 <Button
                     variant="secondary"
                     type="button"
-                    className="gap-2"
+                    className="gap-2 cursor-pointer"
                     disabled={isSocialLoading}
                     onClick={() => handleSocialLogin("google")}
                 >
