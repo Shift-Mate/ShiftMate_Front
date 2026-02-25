@@ -92,4 +92,12 @@ export const attendanceApi = {
       `/stores/${storeId}/attendance/weekly/my?date=${date}`,
     );
   },
+
+  getMyDailyAttendance: async (
+    storeId: string,
+  ): Promise<ApiResponse<TodayAttendanceResponse[]>> => {
+    return apiClient.get<TodayAttendanceResponse[]>(
+      `/stores/${storeId}/attendance/daily/my`,
+    );
+  },
 };

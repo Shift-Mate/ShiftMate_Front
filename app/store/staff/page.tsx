@@ -33,6 +33,10 @@ type StoreMemberListResDto = {
     status: string;
 };
 
+type StaffEmployee = Employee & {
+    memberUserId: number;
+};
+
 const getDepartmentLabel = (dept: Department): string => {
     const labels: Record<Department, string> = {
         kitchen: "주방",
@@ -244,7 +248,7 @@ function StaffManagementPageContent() {
         [storeId]
     );
 
-    const [employees, setEmployees] = useState<Employee[]>([]);
+    const [employees, setEmployees] = useState<StaffEmployee[]>([]);
     const [isLoadingMembers, setIsLoadingMembers] = useState(true);
     const [memberLoadError, setMemberLoadError] = useState<string | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -299,7 +303,7 @@ function StaffManagementPageContent() {
             }
 
             const members = parseStoreMembers(response.data as unknown);
-            const mappedEmployees: Employee[] = members.map((member) => {
+            const mappedEmployees: StaffEmployee[] = members.map((member) => {
                 const name = member.userName.trim();
                 const splitAt = name.length > 1 ? 1 : 0;
                 const lastName = splitAt > 0 ? name.slice(0, splitAt) : "";
@@ -321,6 +325,7 @@ function StaffManagementPageContent() {
                             : member.status.toUpperCase() === "INACTIVE"
                               ? "inactive"
                               : "invited",
+                    memberUserId: member.userId,
                 };
             });
 
@@ -531,7 +536,7 @@ function StaffManagementPageContent() {
                 return;
             }
 
-            const newEmployee: Employee = {
+            const newEmployee: StaffEmployee = {
                 id: `member-${Date.now()}`,
                 firstName: parsedName.firstName,
                 lastName: parsedName.lastName,
@@ -542,6 +547,9 @@ function StaffManagementPageContent() {
                 ),
                 hourlyWage: wage,
                 status: inviteDetails.status === "ACTIVE" ? "active" : "invited",
+                // 생성 직후 응답에서 userId를 직접 받지 않는 흐름이라
+                // 직후 문서 페이지 이동은 재조회 이후에만 정확해진다.
+                memberUserId: userId,
             };
 
             setEmployees((prev) => [newEmployee, ...prev]);
@@ -609,16 +617,27 @@ function StaffManagementPageContent() {
         {
             key: "actions",
             header: "",
-            render: (emp: Employee) => (
-                <Link
-                    href={`/store/staff/preferences?storeId=${storeId}&memberId=${emp.id}&employeeName=${encodeURIComponent(
-                        `${emp.lastName}${emp.firstName}`
-                    )}`}
-                >
-                    <Button variant="ghost" size="sm">
-                        <span className="material-icons text-sm">tune</span>
-                    </Button>
-                </Link>
+            render: (emp: StaffEmployee) => (
+                <div className="flex items-center gap-1">
+                    <Link
+                        href={`/store/staff/documents?storeId=${storeId}&memberUserId=${emp.memberUserId}&employeeName=${encodeURIComponent(
+                            `${emp.lastName}${emp.firstName}`
+                        )}`}
+                    >
+                        <Button variant="ghost" size="sm" className="text-blue-600">
+                            <span className="material-icons text-sm">description</span>
+                        </Button>
+                    </Link>
+                    <Link
+                        href={`/store/staff/preferences?storeId=${storeId}&memberId=${emp.id}&employeeName=${encodeURIComponent(
+                            `${emp.lastName}${emp.firstName}`
+                        )}`}
+                    >
+                        <Button variant="ghost" size="sm">
+                            <span className="material-icons text-sm">tune</span>
+                        </Button>
+                    </Link>
+                </div>
             ),
         },
     ];
