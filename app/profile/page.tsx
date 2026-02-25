@@ -468,6 +468,12 @@ export default function ProfilePage() {
                 기본 정보
               </h2>
               <div className="flex items-center gap-2">
+                <Link href="/profile/documents">
+                  <Button variant="secondary" className="gap-2">
+                    <span className="material-icons text-sm">folder_open</span>
+                    내 파일 저장소
+                  </Button>
+                </Link>
                 <Button
                   variant="secondary"
                   className="gap-2"
