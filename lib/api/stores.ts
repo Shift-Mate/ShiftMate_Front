@@ -2,6 +2,17 @@ import { apiClient } from "./client";
 import { Store } from "@/types/store";
 import { ApiResponse } from "@/types/api";
 
+export type UserDocumentType = "HEALTH_CERTIFICATE" | "IDENTIFICATION";
+
+export type UserDocumentResDto = {
+    id: number;
+    type: UserDocumentType;
+    originalFileName: string;
+    contentType: string;
+    size: number;
+    fileUrl: string;
+};
+
 export const storeApi = {
     async getStores(): Promise<ApiResponse<Store[]>> {
         return apiClient.get<Store[]>("/stores");
@@ -98,6 +109,15 @@ export const storeApi = {
         return apiClient.post<unknown>(
             `/stores/${storeId}/store-members/${userId}`,
             data
+        );
+    },
+
+    async getMemberDocuments(
+        storeId: string,
+        memberUserId: string
+    ): Promise<ApiResponse<UserDocumentResDto[]>> {
+        return apiClient.get<UserDocumentResDto[]>(
+            `/stores/${storeId}/store-members/${memberUserId}/documents`
         );
     },
 
