@@ -97,6 +97,44 @@ const normalizePreviewUrl = (url: string): string => {
   }
 };
 
+const fileActionButtonClass =
+  "inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-colors cursor-pointer hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed";
+
+const resolveApiBaseUrl = (): string => {
+  const envBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8081";
+  if (typeof window === "undefined") {
+    return envBase;
+  }
+  if (envBase.startsWith("http://") || envBase.startsWith("https://")) {
+    return envBase;
+  }
+  return `${window.location.origin}${envBase}`;
+};
+
+const extractFileNameFromDisposition = (value: string | null): string | null => {
+  if (!value) {
+    return null;
+  }
+
+  // RFC 5987 형식(filename*=UTF-8''...)을 우선 파싱한다.
+  const utf8Match = value.match(/filename\*\s*=\s*UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].replace(/["']/g, ""));
+    } catch {
+      // 디코딩 실패 시 일반 filename 파싱으로 fallback
+    }
+  }
+
+  // 일반 형식(filename="...") 파싱
+  const simpleMatch = value.match(/filename\s*=\s*"?([^"]+)"?/i);
+  if (simpleMatch?.[1]) {
+    return simpleMatch[1];
+  }
+
+  return null;
+};
+
 export default function ProfileDocumentsPage() {
   const [documents, setDocuments] =
     useState<Record<UserDocumentType, UserDocument | null>>(EMPTY_DOCUMENTS);
@@ -108,6 +146,9 @@ export default function ProfileDocumentsPage() {
     null,
   );
   const [deletingType, setDeletingType] = useState<UserDocumentType | null>(
+    null,
+  );
+  const [downloadingType, setDownloadingType] = useState<UserDocumentType | null>(
     null,
   );
   const [dragOverType, setDragOverType] = useState<UserDocumentType | null>(
@@ -319,6 +360,72 @@ export default function ProfileDocumentsPage() {
     }
   };
 
+  const handleDownloadOriginal = async (
+    type: UserDocumentType,
+    fallbackFileName: string,
+  ) => {
+    if (downloadingType === type) {
+      return;
+    }
+
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (!token) {
+      await Swal.fire({
+        icon: "warning",
+        title: "로그인 필요",
+        text: "다운로드하려면 다시 로그인해주세요.",
+        confirmButtonText: "확인",
+      });
+      return;
+    }
+
+    setDownloadingType(type);
+    try {
+      const apiBase = resolveApiBaseUrl();
+      const response = await fetch(
+        `${apiBase}/users/me/documents/${type.toLowerCase()}/download`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("원본 이미지 다운로드에 실패했습니다.");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition");
+      const resolvedName =
+        extractFileNameFromDisposition(disposition) || fallbackFileName;
+
+      // 응답 blob을 임시 URL로 만든 뒤 a 태그 클릭으로 즉시 다운로드를 실행한다.
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = resolvedName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "다운로드 실패",
+        text:
+          error instanceof Error
+            ? error.message
+            : "다운로드 중 오류가 발생했습니다.",
+        confirmButtonText: "확인",
+      });
+    } finally {
+      setDownloadingType(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background-light dark:bg-background-dark">
       <MainHeader />
@@ -328,7 +435,7 @@ export default function ProfileDocumentsPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                내 파일 저장소
+                보건증·신분증 보관함
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 보건증/신분증 이미지를 업로드하고 최신 파일을 관리할 수 있어요.
@@ -392,10 +499,25 @@ export default function ProfileDocumentsPage() {
                             href={normalizePreviewUrl(currentDoc.fileUrl)}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex mt-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                            className={`${fileActionButtonClass} mt-2`}
                           >
                             원본 이미지 열기
                           </a>
+                          <button
+                            type="button"
+                            className={`${fileActionButtonClass} mt-2 ml-2`}
+                            onClick={() =>
+                              void handleDownloadOriginal(
+                                item.type,
+                                currentDoc.originalFileName,
+                              )
+                            }
+                            disabled={downloadingType === item.type}
+                          >
+                            {downloadingType === item.type
+                              ? "다운로드 중..."
+                              : "원본 이미지 다운로드"}
+                          </button>
                         </>
                       ) : (
                         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
