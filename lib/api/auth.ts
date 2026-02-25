@@ -31,6 +31,17 @@ export type ResetPasswordPayload = {
   newPasswordConfirm: string;
 };
 
+export type UserDocumentType = "HEALTH_CERTIFICATE" | "IDENTIFICATION";
+
+export type UserDocument = {
+  id: number;
+  type: UserDocumentType;
+  originalFileName: string;
+  contentType: string;
+  size: number;
+  fileUrl: string;
+};
+
 export type SignupEmailVerificationRequestPayload = {
   email: string;
 };
@@ -274,5 +285,25 @@ export const authApi = {
 
   async generateOtp(): Promise<ApiResponse<string>> {
     return apiClient.post<string>("/users/my/otp");
+  },
+
+  async getMyDocuments(): Promise<ApiResponse<UserDocument[]>> {
+    return apiClient.get<UserDocument[]>("/users/me/documents");
+  },
+
+  async uploadMyDocument(
+    type: UserDocumentType,
+    file: File,
+  ): Promise<ApiResponse<UserDocument>> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiClient.postFormData<UserDocument>(
+      `/users/me/documents/${type.toLowerCase()}`,
+      formData,
+    );
+  },
+
+  async deleteMyDocument(type: UserDocumentType): Promise<ApiResponse<string>> {
+    return apiClient.delete<string>(`/users/me/documents/${type.toLowerCase()}`);
   },
 };
