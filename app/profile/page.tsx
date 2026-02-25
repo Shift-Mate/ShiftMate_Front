@@ -471,7 +471,7 @@ export default function ProfilePage() {
                 <Link href="/profile/documents">
                   <Button variant="secondary" className="gap-2">
                     <span className="material-icons text-sm">folder_open</span>
-                    보건증·신분증 보관함
+                    보건증·신분증·통장사본
                   </Button>
                 </Link>
                 <Button

@@ -22,6 +22,7 @@ const ALLOWED_FILE_TYPES = [
 const EMPTY_DOCUMENTS: Record<UserDocumentType, UserDocument | null> = {
   HEALTH_CERTIFICATE: null,
   IDENTIFICATION: null,
+  BANKBOOK_COPY: null,
 };
 
 const DOCUMENT_CARDS: Array<{
@@ -42,10 +43,18 @@ const DOCUMENT_CARDS: Array<{
     description: "본인 확인용 신분증 이미지를 업로드하세요 (JPG/PNG)",
     icon: "badge",
   },
+  {
+    type: "BANKBOOK_COPY",
+    title: "통장사본",
+    description: "급여 정산용 통장사본 이미지를 업로드하세요 (JPG/PNG)",
+    icon: "account_balance",
+  },
 ];
 
 const isUserDocumentType = (value: unknown): value is UserDocumentType =>
-  value === "HEALTH_CERTIFICATE" || value === "IDENTIFICATION";
+  value === "HEALTH_CERTIFICATE" ||
+  value === "IDENTIFICATION" ||
+  value === "BANKBOOK_COPY";
 
 const unwrapApiData = <T,>(payload: unknown): T | null => {
   if (!payload) {
@@ -435,10 +444,10 @@ export default function ProfileDocumentsPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                보건증·신분증 보관함
+                보건증·신분증·통장사본
               </h1>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                보건증/신분증 이미지를 업로드하고 최신 파일을 관리할 수 있어요.
+                보건증/신분증/통장사본 이미지를 업로드하고 최신 파일을 관리할 수 있어요.
               </p>
             </div>
             <Link href="/profile">
