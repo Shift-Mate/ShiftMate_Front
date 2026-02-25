@@ -25,6 +25,16 @@ export const storeApi = {
         return apiClient.get<Store>(`/stores/${id}`);
     },
 
+    async uploadStoreImage(storeId: string, file: File): Promise<ApiResponse<Store>> {
+        const formData = new FormData();
+        formData.append("file", file);
+        return apiClient.postFormData<Store>(`/stores/${storeId}/image`, formData);
+    },
+
+    async deleteStoreImage(storeId: string): Promise<ApiResponse<void>> {
+        return apiClient.delete<void>(`/stores/${storeId}/image`);
+    },
+
     async getShiftTemplate(storeId: string): Promise<ApiResponse<unknown>> {
         return apiClient.get<unknown>(`/stores/${storeId}/shift-template`);
     },
