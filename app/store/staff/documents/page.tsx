@@ -37,6 +37,12 @@ const DOCUMENT_META: Array<{
     description: "본인 확인용 신분증 업로드 문서",
     icon: "badge",
   },
+  {
+    type: "BANKBOOK_COPY",
+    title: "통장사본",
+    description: "급여 정산용 통장사본 업로드 문서",
+    icon: "account_balance",
+  },
 ];
 
 const isApiEnvelope = (value: unknown): value is ApiEnvelope<unknown> => {
@@ -259,7 +265,7 @@ function StaffMemberDocumentsPageContent() {
                   멤버 서류 열람
                 </h1>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  {employeeName}님의 보건증/신분증 업로드 문서를 확인하고 다운로드할 수 있습니다.
+                  {employeeName}님의 보건증/신분증/통장사본 업로드 문서를 확인하고 다운로드할 수 있습니다.
                 </p>
               </div>
               <Link href={`/store/staff?storeId=${storeId}`}>

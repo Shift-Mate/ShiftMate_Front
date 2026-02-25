@@ -2,7 +2,10 @@ import { apiClient } from "./client";
 import { Store } from "@/types/store";
 import { ApiResponse } from "@/types/api";
 
-export type UserDocumentType = "HEALTH_CERTIFICATE" | "IDENTIFICATION";
+export type UserDocumentType =
+    | "HEALTH_CERTIFICATE"
+    | "IDENTIFICATION"
+    | "BANKBOOK_COPY";
 
 export type UserDocumentResDto = {
     id: number;

@@ -31,7 +31,10 @@ export type ResetPasswordPayload = {
   newPasswordConfirm: string;
 };
 
-export type UserDocumentType = "HEALTH_CERTIFICATE" | "IDENTIFICATION";
+export type UserDocumentType =
+  | "HEALTH_CERTIFICATE"
+  | "IDENTIFICATION"
+  | "BANKBOOK_COPY";
 
 export type UserDocument = {
   id: number;
