@@ -122,26 +122,6 @@ const extractFileNameFromDisposition = (value: string | null): string | null => 
   return null;
 };
 
-const normalizePreviewUrl = (url: string): string => {
-  if (typeof window === "undefined") {
-    return url;
-  }
-
-  try {
-    const parsed = new URL(url);
-    if (
-      parsed.hostname === "localhost" &&
-      parsed.port === "8081" &&
-      parsed.pathname.startsWith("/uploads/")
-    ) {
-      return `${window.location.origin}/api${parsed.pathname}${parsed.search}`;
-    }
-    return url;
-  } catch {
-    return url;
-  }
-};
-
 function StaffMemberDocumentsPageContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get("storeId") ?? "";
@@ -153,7 +133,24 @@ function StaffMemberDocumentsPageContent() {
   >({});
   const [isLoading, setIsLoading] = useState(true);
   const [downloadType, setDownloadType] = useState<UserDocumentType | null>(null);
+  const [openType, setOpenType] = useState<UserDocumentType | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<
+    Partial<Record<UserDocumentType, string>>
+  >({});
+
+  const setPreviewUrl = useCallback((type: UserDocumentType, nextUrl?: string) => {
+    setPreviewUrls((prev) => {
+      const current = prev[type];
+      if (current && current.startsWith("blob:") && current !== nextUrl) {
+        URL.revokeObjectURL(current);
+      }
+      if (!nextUrl) {
+        return { ...prev, [type]: undefined };
+      }
+      return { ...prev, [type]: nextUrl };
+    });
+  }, []);
 
   const hasRequiredParams = useMemo(
     () => Boolean(storeId && memberUserId),
@@ -179,17 +176,58 @@ function StaffMemberDocumentsPageContent() {
 
     const docs = parseDocuments(response.data as unknown);
     const next: Partial<Record<UserDocumentType, UserDocumentResDto>> = {};
+    const docsToPreview: UserDocumentResDto[] = [];
     docs.forEach((doc) => {
       next[doc.type] = doc;
+      if (doc.contentType.startsWith("image/")) {
+        docsToPreview.push(doc);
+      }
     });
 
     setDocumentsByType(next);
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (token) {
+      const apiBase = resolveApiBaseUrl();
+      await Promise.all(
+        docsToPreview.map(async (doc) => {
+          try {
+            const previewResponse = await fetch(
+              `${apiBase}/stores/${storeId}/store-members/${memberUserId}/documents/${doc.type.toLowerCase()}/preview`,
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              },
+            );
+            if (!previewResponse.ok) {
+              return;
+            }
+            const previewBlob = await previewResponse.blob();
+            setPreviewUrl(doc.type, URL.createObjectURL(previewBlob));
+          } catch {
+            // preview 로딩 실패 시 문서 메타데이터 표시는 유지한다.
+          }
+        }),
+      );
+    }
     setIsLoading(false);
-  }, [hasRequiredParams, memberUserId, storeId]);
+  }, [hasRequiredParams, memberUserId, setPreviewUrl, storeId]);
 
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(previewUrls).forEach((url) => {
+        if (url && url.startsWith("blob:")) {
+          URL.revokeObjectURL(url);
+        }
+      });
+    };
+  }, [previewUrls]);
 
   const handleDownload = async (type: UserDocumentType, fallbackFileName: string) => {
     if (!hasRequiredParams || downloadType === type) {
@@ -252,6 +290,60 @@ function StaffMemberDocumentsPageContent() {
     }
   };
 
+  const handleOpen = async (type: UserDocumentType) => {
+    if (!hasRequiredParams || openType === type) {
+      return;
+    }
+
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (!token) {
+      await Swal.fire({
+        icon: "warning",
+        title: "로그인 필요",
+        text: "원본을 열려면 다시 로그인해주세요.",
+        confirmButtonText: "확인",
+      });
+      return;
+    }
+
+    setOpenType(type);
+    try {
+      const apiBase = resolveApiBaseUrl();
+      const response = await fetch(
+        `${apiBase}/stores/${storeId}/store-members/${memberUserId}/documents/${type.toLowerCase()}/preview`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (!response.ok) {
+        throw new Error("원본 이미지 열기에 실패했습니다.");
+      }
+
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 60_000);
+    } catch (error) {
+      await Swal.fire({
+        icon: "error",
+        title: "열기 실패",
+        text:
+          error instanceof Error
+            ? error.message
+            : "원본 이미지 열기 중 오류가 발생했습니다.",
+        confirmButtonText: "확인",
+      });
+    } finally {
+      setOpenType(null);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
       <StoreSidebar />
@@ -296,7 +388,7 @@ function StaffMemberDocumentsPageContent() {
               !loadError &&
               DOCUMENT_META.map((meta) => {
                 const doc = documentsByType[meta.type];
-                const previewUrl = doc ? normalizePreviewUrl(doc.fileUrl) : "";
+                const previewUrl = previewUrls[meta.type] ?? "";
 
                 return (
                   <Card key={meta.type}>
@@ -324,14 +416,16 @@ function StaffMemberDocumentsPageContent() {
                               {doc.contentType} · {formatFileSize(doc.size)}
                             </p>
                             <div className="flex items-center gap-2 mt-3">
-                              <a
-                                href={previewUrl}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                type="button"
                                 className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-colors cursor-pointer hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                                onClick={() => void handleOpen(meta.type)}
+                                disabled={openType === meta.type}
                               >
-                                원본 이미지 열기
-                              </a>
+                                {openType === meta.type
+                                  ? "여는 중..."
+                                  : "원본 이미지 열기"}
+                              </button>
                               <button
                                 type="button"
                                 className="inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-600 transition-colors cursor-pointer hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -347,11 +441,17 @@ function StaffMemberDocumentsPageContent() {
                             </div>
                           </div>
                           <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
-                            <img
-                              src={previewUrl}
-                              alt={`${meta.title} 미리보기`}
-                              className="w-full h-64 object-cover"
-                            />
+                            {previewUrl ? (
+                              <img
+                                src={previewUrl}
+                                alt={`${meta.title} 미리보기`}
+                                className="w-full h-64 object-cover"
+                              />
+                            ) : (
+                              <div className="h-64 flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+                                미리보기를 불러오지 못했습니다.
+                              </div>
+                            )}
                           </div>
                         </>
                       ) : (
