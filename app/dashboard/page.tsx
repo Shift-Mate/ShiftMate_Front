@@ -33,6 +33,7 @@ type StoreResDto = {
     monthlySales: number | null;
     location: string | null;
     storeMemberCount: number;
+    imageUrl?: string | null;
 };
 
 const TOKEN_ERROR_CODES = new Set([
@@ -86,6 +87,7 @@ const mapStoreDtoToCardStore = (store: StoreResDto): Store => ({
     shiftCoverage: 0,
     openTime: store.openTime,
     closeTime: store.closeTime,
+    image: store.imageUrl ?? undefined,
 });
 
 const isStoreDto = (value: unknown): value is StoreResDto => {
@@ -102,7 +104,10 @@ const isStoreDto = (value: unknown): value is StoreResDto => {
         typeof candidate.openTime === "string" &&
         typeof candidate.closeTime === "string" &&
         (typeof candidate.location === "string" || candidate.location === null) &&
-        typeof candidate.storeMemberCount === "number"
+        typeof candidate.storeMemberCount === "number" &&
+        (typeof candidate.imageUrl === "string" ||
+            candidate.imageUrl === null ||
+            candidate.imageUrl === undefined)
     );
 };
 
