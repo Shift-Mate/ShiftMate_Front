@@ -6,7 +6,9 @@ import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { storeApi } from "@/lib/api/stores";
+import Swal from "sweetalert2";
 
 const STORE_NAMES: Record<string, string> = {
     "1": "강남점",
@@ -54,6 +56,12 @@ type StoreMemberListResDto = {
     userName: string;
     userEmail: string;
     role: string;
+};
+
+type StoreDetailResDto = {
+    id: number;
+    name: string;
+    imageUrl: string | null;
 };
 
 type ShiftTone = "emerald" | "amber" | "sky";
@@ -161,6 +169,31 @@ const parseStoreMemberData = (rawData: unknown): StoreMemberListResDto[] => {
 
     return [];
 };
+
+const parseStoreDetailData = (rawData: unknown): StoreDetailResDto | null => {
+    const payload =
+        rawData && typeof rawData === "object" && "data" in rawData
+            ? (rawData as { data: unknown }).data
+            : rawData;
+
+    if (!payload || typeof payload !== "object") {
+        return null;
+    }
+
+    const candidate = payload as Partial<StoreDetailResDto>;
+    if (typeof candidate.id !== "number" || typeof candidate.name !== "string") {
+        return null;
+    }
+
+    return {
+        id: candidate.id,
+        name: candidate.name,
+        imageUrl: typeof candidate.imageUrl === "string" ? candidate.imageUrl : null,
+    };
+};
+
+const MAX_STORE_IMAGE_SIZE = 10 * 1024 * 1024;
+const ALLOWED_STORE_IMAGE_TYPES = ["image/png", "image/jpg", "image/jpeg"];
 
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
     const parts = token.split(".");
@@ -329,6 +362,13 @@ function StoreMainPageContent() {
     const [reloadKey, setReloadKey] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [displayStoreName, setDisplayStoreName] = useState(storeName);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [storeImageUrl, setStoreImageUrl] = useState<string | null>(null);
+    const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+    const [isImageUploading, setIsImageUploading] = useState(false);
+    const [isImageDeleting, setIsImageDeleting] = useState(false);
+    const [isImageDragOver, setIsImageDragOver] = useState(false);
 
     const weekDays = useMemo<WeekDay[]>(() => {
         const start = parseDateKey(weekStartDate);
@@ -353,6 +393,52 @@ function StoreMainPageContent() {
         const weekEndDate = addDays(weekStartDate, 6);
         return `${weekStartDate} (월) ~ ${weekEndDate} (일)`;
     }, [weekStartDate]);
+
+    useEffect(() => {
+        setDisplayStoreName(storeName);
+    }, [storeName]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const fetchStoreDetail = async () => {
+            if (!/^\d+$/.test(storeId)) {
+                return;
+            }
+
+            const response = await storeApi.getStore(storeId);
+            if (!response.success) {
+                return;
+            }
+
+            const storeDetail = parseStoreDetailData(response.data as unknown);
+            if (!storeDetail || cancelled) {
+                return;
+            }
+
+            setDisplayStoreName(storeDetail.name);
+            setStoreImageUrl(storeDetail.imageUrl);
+            setImagePreviewUrl((prev) => {
+                if (prev && prev.startsWith("blob:")) {
+                    URL.revokeObjectURL(prev);
+                }
+                return storeDetail.imageUrl;
+            });
+        };
+
+        void fetchStoreDetail();
+        return () => {
+            cancelled = true;
+        };
+    }, [storeId, reloadKey]);
+
+    useEffect(() => {
+        return () => {
+            if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
+                URL.revokeObjectURL(imagePreviewUrl);
+            }
+        };
+    }, [imagePreviewUrl]);
 
     useEffect(() => {
         const fetchRoster = async () => {
@@ -647,6 +733,141 @@ function StoreMainPageContent() {
         window.alert("해당 주차 시간표를 자동 생성했습니다.");
     };
 
+    const validateStoreImageFile = (file: File): string | null => {
+        if (file.size > MAX_STORE_IMAGE_SIZE) {
+            return "파일 크기는 10MB 이하만 업로드할 수 있습니다.";
+        }
+        if (!ALLOWED_STORE_IMAGE_TYPES.includes(file.type.toLowerCase())) {
+            return "PNG, JPG, JPEG 이미지 파일만 업로드할 수 있습니다.";
+        }
+        return null;
+    };
+
+    const handleUploadStoreImage = async (file: File) => {
+        if (!canManageSchedule || !/^\d+$/.test(storeId) || isImageUploading) {
+            return;
+        }
+
+        const validationMessage = validateStoreImageFile(file);
+        if (validationMessage) {
+            await Swal.fire({
+                icon: "warning",
+                title: "업로드 불가",
+                text: validationMessage,
+                confirmButtonText: "확인",
+            });
+            return;
+        }
+
+        const localPreview = URL.createObjectURL(file);
+        setImagePreviewUrl((prev) => {
+            if (prev && prev.startsWith("blob:")) {
+                URL.revokeObjectURL(prev);
+            }
+            return localPreview;
+        });
+
+        setIsImageUploading(true);
+        try {
+            const response = await storeApi.uploadStoreImage(storeId, file);
+            if (!response.success) {
+                throw new Error(response.error?.message ?? "가게 이미지 업로드에 실패했습니다.");
+            }
+
+            const storeDetail = parseStoreDetailData(response.data as unknown);
+            if (storeDetail) {
+                setDisplayStoreName(storeDetail.name);
+                setStoreImageUrl(storeDetail.imageUrl);
+                setImagePreviewUrl((prev) => {
+                    if (prev && prev.startsWith("blob:")) {
+                        URL.revokeObjectURL(prev);
+                    }
+                    return storeDetail.imageUrl;
+                });
+            }
+
+            setReloadKey((prev) => prev + 1);
+            await Swal.fire({
+                icon: "success",
+                title: "업로드 완료",
+                text: "가게 이미지가 저장되었습니다.",
+                timer: 1200,
+                showConfirmButton: false,
+            });
+        } catch (error) {
+            setImagePreviewUrl((prev) => {
+                if (prev && prev.startsWith("blob:")) {
+                    URL.revokeObjectURL(prev);
+                }
+                return storeImageUrl;
+            });
+            await Swal.fire({
+                icon: "error",
+                title: "업로드 실패",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "가게 이미지 업로드 중 오류가 발생했습니다.",
+                confirmButtonText: "확인",
+            });
+        } finally {
+            setIsImageUploading(false);
+        }
+    };
+
+    const handleDeleteStoreImage = async () => {
+        if (!canManageSchedule || !/^\d+$/.test(storeId) || isImageDeleting || !storeImageUrl) {
+            return;
+        }
+
+        const confirmed = await Swal.fire({
+            icon: "warning",
+            title: "가게 이미지 삭제",
+            text: "삭제하면 대시보드에서 기본 아이콘으로 표시됩니다. 계속할까요?",
+            showCancelButton: true,
+            confirmButtonText: "삭제",
+            cancelButtonText: "취소",
+        });
+        if (!confirmed.isConfirmed) {
+            return;
+        }
+
+        setIsImageDeleting(true);
+        try {
+            const response = await storeApi.deleteStoreImage(storeId);
+            if (!response.success) {
+                throw new Error(response.error?.message ?? "가게 이미지 삭제에 실패했습니다.");
+            }
+
+            setStoreImageUrl(null);
+            setImagePreviewUrl((prev) => {
+                if (prev && prev.startsWith("blob:")) {
+                    URL.revokeObjectURL(prev);
+                }
+                return null;
+            });
+            setReloadKey((prev) => prev + 1);
+            await Swal.fire({
+                icon: "success",
+                title: "삭제 완료",
+                text: "가게 이미지가 삭제되었습니다.",
+                confirmButtonText: "확인",
+            });
+        } catch (error) {
+            await Swal.fire({
+                icon: "error",
+                title: "삭제 실패",
+                text:
+                    error instanceof Error
+                        ? error.message
+                        : "가게 이미지 삭제 중 오류가 발생했습니다.",
+                confirmButtonText: "확인",
+            });
+        } finally {
+            setIsImageDeleting(false);
+        }
+    };
+
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
             <StoreSidebar />
@@ -659,7 +880,7 @@ function StoreMainPageContent() {
                         <div className="md:flex md:items-center md:justify-between">
                             <div className="flex-1 min-w-0">
                                 <h2 className="text-2xl font-bold leading-7 text-slate-900 dark:text-white sm:text-3xl sm:truncate">
-                                    {storeName} 주간 시간표
+                                    {displayStoreName} 주간 시간표
                                 </h2>
                                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                                     storeId: {storeId} 기준 매장 메인 화면 (주간 시간표)
@@ -668,6 +889,14 @@ function StoreMainPageContent() {
                             <div className="mt-4 flex md:mt-0 md:ml-4 gap-3">
                                 {canManageSchedule && (
                                     <>
+                                        <Button
+                                            variant="secondary"
+                                            className="gap-2"
+                                            onClick={() => setIsImageModalOpen(true)}
+                                        >
+                                            <span className="material-icons text-sm">image</span>
+                                            가게 이미지
+                                        </Button>
                                         <Button
                                             variant="secondary"
                                             className="gap-2"
@@ -870,6 +1099,110 @@ function StoreMainPageContent() {
                     </div>
                 </main>
             </div>
+
+            <Modal
+                isOpen={isImageModalOpen}
+                onClose={() => {
+                    if (!isImageUploading && !isImageDeleting) {
+                        setIsImageModalOpen(false);
+                    }
+                }}
+                title="가게 이미지 관리"
+                size="md"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                        대시보드 매장 카드에 표시될 대표 이미지를 설정하세요. (JPG/PNG, 최대 10MB)
+                    </p>
+
+                    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
+                        {imagePreviewUrl ? (
+                            <img
+                                src={imagePreviewUrl}
+                                alt={`${displayStoreName} 대표 이미지`}
+                                className="w-full h-56 object-cover"
+                            />
+                        ) : (
+                            <div className="h-56 flex items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+                                아직 등록된 가게 이미지가 없습니다.
+                            </div>
+                        )}
+                    </div>
+
+                    <label
+                        htmlFor="store-image-input"
+                        onDrop={(event) => {
+                            event.preventDefault();
+                            setIsImageDragOver(false);
+                            const file = event.dataTransfer.files?.[0] ?? null;
+                            if (file) {
+                                void handleUploadStoreImage(file);
+                            }
+                        }}
+                        onDragOver={(event) => {
+                            event.preventDefault();
+                            setIsImageDragOver(true);
+                        }}
+                        onDragLeave={(event) => {
+                            event.preventDefault();
+                            setIsImageDragOver(false);
+                        }}
+                        className={`block rounded-xl border-2 border-dashed p-5 transition-colors cursor-pointer ${
+                            isImageDragOver
+                                ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
+                                : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/30"
+                        }`}
+                    >
+                        <input
+                            id="store-image-input"
+                            type="file"
+                            accept="image/png,image/jpg,image/jpeg"
+                            className="hidden"
+                            onChange={(event) => {
+                                const file = event.target.files?.[0] ?? null;
+                                if (file) {
+                                    void handleUploadStoreImage(file);
+                                }
+                                event.currentTarget.value = "";
+                            }}
+                            disabled={isImageUploading || isImageDeleting}
+                        />
+                        <div className="flex flex-col items-center justify-center gap-2 text-center">
+                            <span className="material-icons text-3xl text-blue-500">
+                                cloud_upload
+                            </span>
+                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                클릭해서 이미지 선택 또는 드래그앤드롭
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                                JPG/PNG, 최대 10MB
+                            </p>
+                            {isImageUploading && (
+                                <p className="text-xs text-blue-600 dark:text-blue-300">
+                                    업로드 중...
+                                </p>
+                            )}
+                        </div>
+                    </label>
+
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={() => setIsImageModalOpen(false)}
+                            disabled={isImageUploading || isImageDeleting}
+                        >
+                            닫기
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={() => void handleDeleteStoreImage()}
+                            disabled={!storeImageUrl || isImageUploading || isImageDeleting}
+                        >
+                            {isImageDeleting ? "삭제 중..." : "이미지 삭제"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 }
