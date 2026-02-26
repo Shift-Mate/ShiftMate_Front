@@ -2,20 +2,15 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { storeApi } from "@/lib/api/stores";
 import Swal from "sweetalert2"; // 이미지 업로드 알림용
-import { openShiftApi } from "@/lib/api/openShift"; // 생성 API용
+import { openShiftApi } from "@/lib/api/openShift"; // 생성 및 조회 API용
 import { authApi } from "@/lib/api/auth";
-import {
-  showConfirmAlert,
-  showErrorAlert,
-  showSuccessAlert,
-  showWarningAlert,
-} from "@/lib/ui/sweetAlert";
 
 const STORE_NAMES: Record<string, string> = {
   "1": "강남점",
@@ -41,7 +36,6 @@ type ApiResponse<T> = {
 type TemplateType = "COSTSAVER" | "HIGHSERVICE";
 type ShiftType = "NORMAL" | "PEAK";
 
-// [수정] id 필드 포함 (여러 가능성 고려)
 type TemplateResDto = {
   id?: number;
   templateId?: number;
@@ -69,7 +63,6 @@ type StoreMemberListResDto = {
   role: string;
 };
 
-// [추가] 매장 상세 정보 DTO
 type StoreDetailResDto = {
   id: number;
   name: string;
@@ -85,8 +78,10 @@ type WeekDay = {
   highlight: boolean;
 };
 
-// 셀 아이템 (스케줄만 표시)
-type CellItem = { type: "SCHEDULE"; name: string };
+// 셀 아이템 (스케줄과 오픈시프트 구분)
+type CellItem =
+  | { type: "SCHEDULE"; name: string }
+  | { type: "OPEN_SHIFT"; id: number };
 
 type RosterRow = {
   key: string;
@@ -161,8 +156,6 @@ const parseTemplateData = (rawData: unknown): TemplateResDto[] => {
   ) {
     data = rawData.data;
   }
-
-  // ID 매핑 처리
   return data
     .map((item) => ({
       ...item,
@@ -218,7 +211,17 @@ const parseStoreDetailData = (rawData: unknown): StoreDetailResDto | null => {
   };
 };
 
-// 이미지 업로드 상수
+// [추가] 오픈시프트 데이터 안전 파싱
+const parseOpenShiftData = (rawData: unknown): any[] => {
+  if (Array.isArray(rawData)) return rawData;
+  if (rawData && typeof rawData === "object") {
+    const obj = rawData as any;
+    if (Array.isArray(obj.data)) return obj.data;
+    if (obj.data && Array.isArray(obj.data.data)) return obj.data.data;
+  }
+  return [];
+};
+
 const MAX_STORE_IMAGE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_STORE_IMAGE_TYPES = ["image/png", "image/jpg", "image/jpeg"];
 
@@ -247,6 +250,7 @@ const isManagerRole = (role: string) => {
 };
 
 const formatTime = (value: string) => {
+  if (!value) return "00:00";
   const [h, m] = value.split(":");
   return h && m ? `${h}:${m}` : value;
 };
@@ -294,6 +298,7 @@ const addDays = (dateStr: string, days: number) => {
 };
 
 const parseTimeToMinutes = (value: string) => {
+  if (!value) return 0;
   const [h, m] = value.split(":");
   return Number(h) * 60 + Number(m);
 };
@@ -308,7 +313,6 @@ function StoreMainPageContent() {
     [storeId],
   );
 
-  // States
   const [weekStartDate, setWeekStartDate] = useState(() =>
     getWeekStartDate(new Date()),
   );
@@ -322,7 +326,6 @@ function StoreMainPageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Store Detail & Image States (Upstream)
   const [displayStoreName, setDisplayStoreName] = useState(initialStoreName);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [storeImageUrl, setStoreImageUrl] = useState<string | null>(null);
@@ -331,7 +334,6 @@ function StoreMainPageContent() {
   const [isImageDeleting, setIsImageDeleting] = useState(false);
   const [isImageDragOver, setIsImageDragOver] = useState(false);
 
-  // OpenShift Modal States (Stashed)
   const [isOpenShiftModalOpen, setIsOpenShiftModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{
     templateId: number;
@@ -358,12 +360,10 @@ function StoreMainPageContent() {
 
   const weekRangeLabel = `${weekStartDate} ~ ${addDays(weekStartDate, 6)}`;
 
-  // 매장 상세 정보 조회 (이미지 등)
   useEffect(() => {
     let cancelled = false;
     const fetchStoreDetail = async () => {
       if (!/^\d+$/.test(storeId)) return;
-
       const response = await storeApi.getStore(storeId);
       if (!response.success) return;
 
@@ -379,14 +379,12 @@ function StoreMainPageContent() {
         return storeDetail.imageUrl;
       });
     };
-
     void fetchStoreDetail();
     return () => {
       cancelled = true;
     };
   }, [storeId, reloadKey]);
 
-  // 이미지 프리뷰 정리
   useEffect(() => {
     return () => {
       if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
@@ -395,7 +393,6 @@ function StoreMainPageContent() {
     };
   }, [imagePreviewUrl]);
 
-  // 스케줄 데이터 조회
   useEffect(() => {
     const fetchRoster = async () => {
       setIsLoading(true);
@@ -408,13 +405,16 @@ function StoreMainPageContent() {
       }
 
       try {
-        const [templateResponse, scheduleResponse] = await Promise.all([
-          storeApi.getShiftTemplate(storeId),
-          storeApi.getStoreSchedules(storeId, weekStartDate),
-        ]);
+        const [templateResponse, scheduleResponse, openShiftResponse] =
+          await Promise.all([
+            storeApi.getShiftTemplate(storeId),
+            storeApi.getStoreSchedules(storeId, weekStartDate),
+            openShiftApi.getList(storeId).catch(() => null),
+          ]);
 
         let templates: TemplateResDto[] = [];
         let schedules: ScheduleResDto[] = [];
+        let openShifts: any[] = [];
 
         if (!templateResponse.success) {
           const code = templateResponse.error
@@ -446,8 +446,9 @@ function StoreMainPageContent() {
           schedules = parseScheduleData(scheduleResponse.data);
         }
 
+        openShifts = parseOpenShiftData(openShiftResponse);
+
         const rows: RosterRow[] = templates.map((t, idx) => {
-          // ID가 없는 경우 -1로 설정하여 버튼 비활성화 방지 (혹은 조건부 렌더링)
           const tId = t.id || t.templateId || t.shiftTemplateId || -1;
           const name =
             t.name || (t.shiftType === "PEAK" ? "Peak" : `Shift ${idx + 1}`);
@@ -466,6 +467,7 @@ function StoreMainPageContent() {
           };
         });
 
+        // 1. 기존 확정된 스케줄 채우기
         schedules.forEach((sch) => {
           const dayIndex = weekDays.findIndex(
             (d) => d.dateKey === sch.workDate,
@@ -492,11 +494,60 @@ function StoreMainPageContent() {
             rows.push(row);
           }
 
-          if (!row.cells[dayIndex].some((c) => c.name === sch.memberName)) {
+          if (
+            !row.cells[dayIndex].some(
+              (c) => c.type === "SCHEDULE" && c.name === sch.memberName,
+            )
+          ) {
             row.cells[dayIndex].push({
               type: "SCHEDULE",
               name: sch.memberName,
             });
+          }
+        });
+
+        // 2. 오픈시프트 뱃지 채우기 (시간 기반으로 더 강력하게 매칭)
+        openShifts.forEach((os) => {
+          if (os.requestStatus !== "OPEN" && os.requestStatus !== "RECRUITING")
+            return;
+
+          const dayIndex = weekDays.findIndex((d) => d.dateKey === os.workDate);
+          if (dayIndex === -1) return;
+
+          let row = rows.find((r) => {
+            // ID가 있으면 ID로 매칭
+            if (os.shiftTemplateId && r.templateId === os.shiftTemplateId)
+              return true;
+            // DTO에 ID가 없으면 시간으로 매칭
+            const rStart = r.startTime?.substring(0, 5);
+            const rEnd = r.endTime?.substring(0, 5);
+            const osStart = os.startTime?.substring(0, 5);
+            const osEnd = os.endTime?.substring(0, 5);
+            return rStart === osStart && rEnd === osEnd;
+          });
+
+          // 맞는 행이 아예 없으면 임시 행이라도 만들어서 뱃지 띄우기
+          if (!row) {
+            row = {
+              key: `os-temp-${os.id}`,
+              templateId: os.shiftTemplateId || -1,
+              name: "오픈시프트 모집",
+              shiftType: null,
+              templateType: null,
+              startTime: os.startTime || "00:00",
+              endTime: os.endTime || "00:00",
+              time: `${formatTime(os.startTime)} - ${formatTime(os.endTime)}`,
+              tone: "emerald",
+              cells: weekDays.map(() => []),
+            };
+            rows.push(row);
+          }
+
+          const alreadyExists = row.cells[dayIndex].some(
+            (item) => item.type === "OPEN_SHIFT" && item.id === os.id,
+          );
+          if (!alreadyExists) {
+            row.cells[dayIndex].push({ type: "OPEN_SHIFT", id: os.id });
           }
         });
 
@@ -518,7 +569,6 @@ function StoreMainPageContent() {
     void fetchRoster();
   }, [storeId, weekStartDate, weekDays, reloadKey]);
 
-  // 권한 체크
   useEffect(() => {
     let cancelled = false;
     const fetchMyRole = async () => {
@@ -566,14 +616,12 @@ function StoreMainPageContent() {
 
   const handleDeleteWeekSchedules = async () => {
     if (!/^\d+$/.test(storeId)) {
-      await showWarningAlert("요청 오류", "유효하지 않은 매장 ID입니다.");
+      window.alert("유효하지 않은 매장 ID입니다.");
       return;
     }
-    const ok = await showConfirmAlert({
-      title: "시간표 삭제",
-      text: `${weekStartDate} 주차 스케줄을 모두 삭제하시겠습니까?`,
-      confirmButtonText: "삭제하기",
-    });
+    const ok = window.confirm(
+      `${weekStartDate} 주차 스케줄을 모두 삭제하시겠습니까?`,
+    );
     if (!ok) return;
 
     setIsDeletingSchedule(true);
@@ -583,12 +631,11 @@ function StoreMainPageContent() {
     );
 
     if (!response.success) {
-      await showErrorAlert(
-        "삭제 실패",
+      window.alert(
         response.error?.message ?? "스케줄 삭제 중 오류가 발생했습니다.",
       );
     } else {
-      await showSuccessAlert("삭제 완료", "해당 주차 스케줄을 삭제했습니다.");
+      window.alert("해당 주차 스케줄을 삭제했습니다.");
       setReloadKey((prev) => prev + 1);
     }
     setIsDeletingSchedule(false);
@@ -596,7 +643,7 @@ function StoreMainPageContent() {
 
   const handleAutoGenerateWeekSchedules = async () => {
     if (!/^\d+$/.test(storeId)) {
-      await showWarningAlert("요청 오류", "유효하지 않은 매장 ID입니다.");
+      window.alert("유효하지 않은 매장 ID입니다.");
       return;
     }
     setIsAutoGeneratingSchedule(true);
@@ -606,18 +653,16 @@ function StoreMainPageContent() {
     );
 
     if (!response.success) {
-      await showErrorAlert(
-        "자동 생성 실패",
+      window.alert(
         response.error?.message ?? "시간표 자동 생성 중 오류가 발생했습니다.",
       );
     } else {
-      await showSuccessAlert("생성 완료", "해당 주차 시간표를 자동 생성했습니다.");
+      window.alert("해당 주차 시간표를 자동 생성했습니다.");
       setReloadKey((prev) => prev + 1);
     }
     setIsAutoGeneratingSchedule(false);
   };
 
-  // 이미지 업로드 검증
   const validateStoreImageFile = (file: File): string | null => {
     if (file.size > MAX_STORE_IMAGE_SIZE) {
       return "파일 크기는 10MB 이하만 업로드할 수 있습니다.";
@@ -628,11 +673,9 @@ function StoreMainPageContent() {
     return null;
   };
 
-  // 이미지 업로드 핸들러
   const handleUploadStoreImage = async (file: File) => {
-    if (!canManageSchedule || !/^\d+$/.test(storeId) || isImageUploading) {
+    if (!canManageSchedule || !/^\d+$/.test(storeId) || isImageUploading)
       return;
-    }
 
     const validationMessage = validateStoreImageFile(file);
     if (validationMessage) {
@@ -647,29 +690,24 @@ function StoreMainPageContent() {
 
     const localPreview = URL.createObjectURL(file);
     setImagePreviewUrl((prev) => {
-      if (prev && prev.startsWith("blob:")) {
-        URL.revokeObjectURL(prev);
-      }
+      if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
       return localPreview;
     });
 
     setIsImageUploading(true);
     try {
       const response = await storeApi.uploadStoreImage(storeId, file);
-      if (!response.success) {
+      if (!response.success)
         throw new Error(
           response.error?.message ?? "가게 이미지 업로드에 실패했습니다.",
         );
-      }
 
       const storeDetail = parseStoreDetailData(response.data);
       if (storeDetail) {
         setDisplayStoreName(storeDetail.name);
         setStoreImageUrl(storeDetail.imageUrl);
         setImagePreviewUrl((prev) => {
-          if (prev && prev.startsWith("blob:")) {
-            URL.revokeObjectURL(prev);
-          }
+          if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
           return storeDetail.imageUrl;
         });
       }
@@ -684,9 +722,7 @@ function StoreMainPageContent() {
       });
     } catch (error) {
       setImagePreviewUrl((prev) => {
-        if (prev && prev.startsWith("blob:")) {
-          URL.revokeObjectURL(prev);
-        }
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
         return storeImageUrl;
       });
       await Swal.fire({
@@ -703,16 +739,14 @@ function StoreMainPageContent() {
     }
   };
 
-  // 이미지 삭제 핸들러
   const handleDeleteStoreImage = async () => {
     if (
       !canManageSchedule ||
       !/^\d+$/.test(storeId) ||
       isImageDeleting ||
       !storeImageUrl
-    ) {
+    )
       return;
-    }
 
     const confirmed = await Swal.fire({
       icon: "warning",
@@ -722,24 +756,19 @@ function StoreMainPageContent() {
       confirmButtonText: "삭제",
       cancelButtonText: "취소",
     });
-    if (!confirmed.isConfirmed) {
-      return;
-    }
+    if (!confirmed.isConfirmed) return;
 
     setIsImageDeleting(true);
     try {
       const response = await storeApi.deleteStoreImage(storeId);
-      if (!response.success) {
+      if (!response.success)
         throw new Error(
           response.error?.message ?? "가게 이미지 삭제에 실패했습니다.",
         );
-      }
 
       setStoreImageUrl(null);
       setImagePreviewUrl((prev) => {
-        if (prev && prev.startsWith("blob:")) {
-          URL.revokeObjectURL(prev);
-        }
+        if (prev && prev.startsWith("blob:")) URL.revokeObjectURL(prev);
         return null;
       });
       setReloadKey((prev) => prev + 1);
@@ -764,18 +793,17 @@ function StoreMainPageContent() {
     }
   };
 
-  // 오픈시프트 모달 열기
   const handleOpenCreateModal = (
     templateId: number,
     date: string,
     time: string,
   ) => {
     if (templateId <= 0) {
-      // ID가 없는 경우(임시행 등) 처리
-      void showWarningAlert(
-        "생성 불가",
-        "이 근무 파트의 ID 정보를 불러오지 못했습니다.",
-      );
+      Swal.fire({
+        icon: "warning",
+        title: "생성 불가",
+        text: "이 근무 파트의 ID 정보를 불러오지 못했습니다.",
+      });
       return;
     }
     setSelectedSlot({ templateId, date, timeLabel: time });
@@ -783,7 +811,6 @@ function StoreMainPageContent() {
     setIsOpenShiftModalOpen(true);
   };
 
-  // 오픈시프트 생성 요청
   const handleCreateOpenShift = async () => {
     if (!selectedSlot) return;
     try {
@@ -830,6 +857,7 @@ function StoreMainPageContent() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
+      <StoreSidebar />
 
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
@@ -1024,9 +1052,7 @@ function StoreMainPageContent() {
                           <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center gap-1">
                             <div className="flex items-center gap-2">
                               <span
-                                className={`w-2 h-2 rounded-full ${
-                                  dotStyleByTone[row.tone]
-                                }`}
+                                className={`w-2 h-2 rounded-full ${dotStyleByTone[row.tone]}`}
                               />
                               <span className="text-sm font-bold text-slate-900 dark:text-white">
                                 {row.name}
@@ -1037,6 +1063,7 @@ function StoreMainPageContent() {
                             </span>
                           </div>
 
+                          {/* 요일별 셀 */}
                           {row.cells.map((items, idx) => {
                             const currentDate = weekDays[idx].dateKey;
                             const hasTemplate = row.templateId > 0;
@@ -1050,20 +1077,34 @@ function StoreMainPageContent() {
                                     : ""
                                 }`}
                               >
-                                {/* 스케줄 목록 */}
-                                {items.map((item, i) => (
-                                  <div
-                                    key={`${row.key}-${idx}-${i}`}
-                                    className={`text-xs px-2 py-1 rounded font-medium flex items-center gap-1 ${
-                                      badgeStyleByTone[row.tone]
-                                    }`}
-                                  >
-                                    <div className="w-4 h-4 bg-white/50 rounded-full flex items-center justify-center text-[9px]">
-                                      {item.name[0]}
-                                    </div>
-                                    {item.name}
-                                  </div>
-                                ))}
+                                {/* 스케줄 및 오픈시프트 뱃지 목록 */}
+                                {items.map((item, i) => {
+                                  if (item.type === "SCHEDULE") {
+                                    return (
+                                      <div
+                                        key={`${row.key}-${idx}-${i}`}
+                                        className={`text-xs px-2 py-1 rounded font-medium flex items-center gap-1 ${badgeStyleByTone[row.tone]}`}
+                                      >
+                                        <div className="w-4 h-4 bg-white/50 rounded-full flex items-center justify-center text-[9px]">
+                                          {item.name[0]}
+                                        </div>
+                                        {item.name}
+                                      </div>
+                                    );
+                                  } else if (item.type === "OPEN_SHIFT") {
+                                    return (
+                                      <div
+                                        key={`${row.key}-${idx}-${i}`}
+                                        className="text-xs px-2 py-1.5 rounded font-bold flex items-center justify-center gap-1 bg-orange-100 text-orange-700 border border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800/50 shadow-sm"
+                                      >
+                                        <span className="material-icons text-[12px]">
+                                          campaign
+                                        </span>
+                                        모집중
+                                      </div>
+                                    );
+                                  }
+                                })}
 
                                 {/* 플러스 버튼 - 관리자 & 템플릿 ID 존재 시 항상 표시 */}
                                 {canManageSchedule && hasTemplate && (
@@ -1077,8 +1118,8 @@ function StoreMainPageContent() {
                                     }
                                     className={`w-full h-8 border border-dashed border-slate-300 dark:border-slate-600 rounded flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all mt-auto ${
                                       items.length > 0
-                                        ? "opacity-50 hover:opacity-100" // 스케줄 있으면 반투명
-                                        : "" // 없으면 불투명
+                                        ? "opacity-50 hover:opacity-100"
+                                        : ""
                                     }`}
                                     title="오픈시프트 생성 (추가 인원 모집)"
                                   >
