@@ -16,6 +16,7 @@ import {
 import { scheduleApi } from "@/lib/api/schedules";
 import { storeApi } from "@/lib/api/stores";
 import { userApi, storeMemberApi } from "@/lib/api/users";
+import { showErrorAlert, showSuccessAlert } from "@/lib/ui/sweetAlert";
 
 // Shift 타입 확장을 위해 인터페이스 보강
 interface ExtendedShift extends Shift {
@@ -252,15 +253,18 @@ function MySchedulePageContent() {
       });
 
       if (res.success) {
-        alert("대체 근무 요청이 등록되었습니다.");
+        await showSuccessAlert("등록 완료", "대체 근무 요청이 등록되었습니다.");
         handleCloseModal();
         window.location.reload();
       } else {
-        alert(res.error?.message || "요청 등록에 실패했습니다.");
+        await showErrorAlert(
+          "등록 실패",
+          res.error?.message || "요청 등록에 실패했습니다.",
+        );
       }
     } catch (e) {
       console.error(e);
-      alert("오류가 발생했습니다.");
+      await showErrorAlert("오류 발생", "오류가 발생했습니다.");
     }
   };
 

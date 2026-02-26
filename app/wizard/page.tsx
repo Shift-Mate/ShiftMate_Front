@@ -12,6 +12,7 @@ import { WizardStep3ShiftLogic } from "@/components/domain/wizard/WizardStep3Shi
 import { WizardStep4Staffing } from "@/components/domain/wizard/WizardStep4Staffing";
 import { WizardFormData } from "@/components/domain/wizard/types";
 import { storeApi } from "@/lib/api/stores";
+import { showSuccessAlert, showWarningAlert } from "@/lib/ui/sweetAlert";
 
 type StepKey = "business" | "store" | "peak" | "logic" | "staffing";
 
@@ -266,7 +267,8 @@ export default function WizardPage() {
             const code = cleanup.error?.code ?? "";
 
             if (code === "500" || code === "INTERNAL_SERVER_ERROR") {
-                window.alert(
+                await showWarningAlert(
+                    "일부 처리 실패",
                     "매장은 생성되었지만 템플릿 정리 중 오류가 발생했습니다. 관리자에게 문의해 주세요."
                 );
                 router.push("/dashboard");
@@ -278,7 +280,7 @@ export default function WizardPage() {
             return;
         }
 
-        window.alert("매장과 시프트 템플릿이 생성되었습니다.");
+        await showSuccessAlert("생성 완료", "매장과 시프트 템플릿이 생성되었습니다.");
         router.push("/dashboard");
     };
 
