@@ -1,16 +1,15 @@
 "use client";
 
-import { TemplateType, WizardFormData } from "@/components/domain/wizard/types";
+import {
+    TemplateType,
+    WizardFormData,
+    WizardTemplateResDto,
+} from "@/components/domain/wizard/types";
 
 type Props = {
     data: WizardFormData;
     onChange: (patch: Partial<WizardFormData>) => void;
-};
-
-type PreviewRow = {
-    label: string;
-    start: string;
-    end: string;
+    templatesByType: Record<TemplateType, WizardTemplateResDto[]>;
 };
 
 const options: Array<{
@@ -33,65 +32,15 @@ const options: Array<{
     },
 ];
 
-const parseMinutes = (time: string): number => {
+const formatTime = (time: string): string => {
     const [hourText, minuteText] = time.split(":");
-    return Number(hourText) * 60 + Number(minuteText);
-};
-
-const formatMinutes = (minutes: number): string => {
-    const hour = Math.floor(minutes / 60);
-    const minute = minutes % 60;
-    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-};
-
-const splitByShiftCount = (
-    openTime: string,
-    closeTime: string,
-    nShifts: number
-): PreviewRow[] => {
-    const open = parseMinutes(openTime);
-    const close = parseMinutes(closeTime);
-
-    if (!Number.isFinite(open) || !Number.isFinite(close) || close <= open) {
-        return [];
+    if (!hourText || !minuteText) {
+        return time;
     }
-
-    return Array.from({ length: nShifts }, (_, index) => {
-        const start = Math.round(open + ((close - open) * index) / nShifts);
-        const end = Math.round(open + ((close - open) * (index + 1)) / nShifts);
-        return {
-            label: `Shift ${index + 1}`,
-            start: formatMinutes(start),
-            end: formatMinutes(end),
-        };
-    });
+    return `${hourText.padStart(2, "0")}:${minuteText.padStart(2, "0")}`;
 };
 
-const getPreviewRows = (data: WizardFormData, templateType: TemplateType): PreviewRow[] => {
-    const baseRows = splitByShiftCount(data.openTime, data.closeTime, data.shiftsPerDay);
-
-    if (!data.peakTimeEnabled || !data.peakStart || !data.peakEnd) {
-        return baseRows;
-    }
-
-    if (templateType === "COSTSAVER") {
-        return [
-            ...baseRows,
-            { label: "Peak", start: data.peakStart, end: data.peakEnd },
-        ];
-    }
-
-    return [
-        ...baseRows,
-        {
-            label: "Peak Service",
-            start: data.peakStart,
-            end: data.peakEnd,
-        },
-    ];
-};
-
-export function WizardStep3ShiftLogic({ data, onChange }: Props) {
+export function WizardStep3ShiftLogic({ data, onChange, templatesByType }: Props) {
     return (
         <div className="space-y-6">
             <div>
@@ -112,7 +61,7 @@ export function WizardStep3ShiftLogic({ data, onChange }: Props) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {options.map((option) => {
                     const selected = data.templateType === option.value;
-                    const previewRows = getPreviewRows(data, option.value);
+                    const previewRows = templatesByType[option.value] ?? [];
 
                     return (
                         <button
@@ -159,22 +108,35 @@ export function WizardStep3ShiftLogic({ data, onChange }: Props) {
                                     <div className="px-3 py-2">Start</div>
                                     <div className="px-3 py-2">End</div>
                                 </div>
-                                {previewRows.map((row) => (
-                                    <div
-                                        key={`${option.value}-${row.label}-${row.start}-${row.end}`}
-                                        className="grid grid-cols-3 text-sm border-t border-slate-200 dark:border-slate-700"
-                                    >
-                                        <div className="px-3 py-2 text-slate-900 dark:text-white">
-                                            {row.label}
-                                        </div>
-                                        <div className="px-3 py-2 text-slate-600 dark:text-slate-300">
-                                            {row.start}
-                                        </div>
-                                        <div className="px-3 py-2 text-slate-600 dark:text-slate-300">
-                                            {row.end}
-                                        </div>
+                                {previewRows.length === 0 && (
+                                    <div className="px-3 py-3 text-sm text-slate-500 dark:text-slate-400 border-t border-slate-200 dark:border-slate-700">
+                                        템플릿 시프트가 없습니다.
                                     </div>
-                                ))}
+                                )}
+                                {previewRows.map((row, idx) => {
+                                    const label =
+                                        row.name ??
+                                        (row.shiftType === "PEAK"
+                                            ? "Peak"
+                                            : `Shift ${idx + 1}`);
+
+                                    return (
+                                        <div
+                                            key={`${option.value}-${row.id}-${row.startTime}-${row.endTime}`}
+                                            className="grid grid-cols-3 text-sm border-t border-slate-200 dark:border-slate-700"
+                                        >
+                                            <div className="px-3 py-2 text-slate-900 dark:text-white">
+                                                {label}
+                                            </div>
+                                            <div className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                                                {formatTime(row.startTime)}
+                                            </div>
+                                            <div className="px-3 py-2 text-slate-600 dark:text-slate-300">
+                                                {formatTime(row.endTime)}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </button>
                     );
