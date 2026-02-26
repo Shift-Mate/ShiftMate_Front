@@ -24,7 +24,7 @@ import {
   showWarningAlert,
 } from "@/lib/ui/sweetAlert";
 
-// 탭 키 타입 정의 (open-shifts 추가)
+// 탭 키 타입 정의
 type TabKey = "others" | "open-shifts" | "my-requests" | "my-applications";
 
 const getStatusVariant = (status: string): BadgeProps["variant"] => {
@@ -107,11 +107,16 @@ function SubstitutesPageContent() {
   const [otherRequests, setOtherRequests] = useState<SubstituteRequestRes[]>(
     [],
   );
-  const [openShifts, setOpenShifts] = useState<OpenShiftRes[]>([]); // 오픈시프트 데이터
+  const [openShifts, setOpenShifts] = useState<OpenShiftRes[]>([]);
   const [myRequests, setMyRequests] = useState<SubstituteRequestRes[]>([]);
+
+  // 지원 내역 (대타 + 오픈시프트)
   const [myApplications, setMyApplications] = useState<
     MySubstituteApplicationRes[]
   >([]);
+  const [myOpenShiftApplications, setMyOpenShiftApplications] = useState<any[]>(
+    [],
+  );
 
   // 로그인한 사용자 ID
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -121,7 +126,6 @@ function SubstitutesPageContent() {
   const [selectedShiftId, setSelectedShiftId] = useState<string>("");
   const [requestReason, setRequestReason] = useState("");
 
-  // 현재 탭에 맞는 상태 옵션 가져오기
   const currentStatusOptions =
     activeTab === "others"
       ? OTHERS_REQUEST_STATUS_OPTIONS
@@ -129,9 +133,8 @@ function SubstitutesPageContent() {
         ? MY_REQUEST_STATUS_OPTIONS
         : activeTab === "my-applications"
           ? APPLICATION_STATUS_OPTIONS
-          : []; // open-shifts 탭은 별도 필터 로직이 없거나 단순함
+          : [];
 
-  // --- 1. 매장 정보 불러오기 ---
   useEffect(() => {
     const fetchStoreInfo = async () => {
       if (!storeId) return;
@@ -157,7 +160,6 @@ function SubstitutesPageContent() {
     fetchStoreInfo();
   }, [storeId]);
 
-  // --- 2. 초기 사용자 정보 로드 ---
   useEffect(() => {
     const initUser = async () => {
       try {
@@ -185,17 +187,17 @@ function SubstitutesPageContent() {
         );
         if (res.success && res.data) {
           const filteredData = res.data.filter(
-            (req) => req.status == "OPEN" || req.status == "PENDING",
+            (req: any) => req.status == "OPEN" || req.status == "PENDING",
           );
           setOtherRequests(filteredData);
         }
       } else if (activeTab === "open-shifts") {
-        // 오픈시프트 조회
-        const res = await openShiftApi.getList(storeId);
-        if (res.success && res.data) {
-          // 필요시 OPEN 상태만 필터링 (현재는 API가 알아서 주거나 전체를 보여줌)
-          setOpenShifts(res.data);
-        }
+        const res: any = await openShiftApi.getList(storeId);
+        let data: OpenShiftRes[] = [];
+        if (Array.isArray(res)) data = res;
+        else if (res?.data && Array.isArray(res.data)) data = res.data;
+        else if (res?.success && Array.isArray(res?.data)) data = res.data;
+        setOpenShifts(data);
       } else if (activeTab === "my-requests") {
         const res = await substituteApi.getMyRequests(
           storeId,
@@ -204,12 +206,41 @@ function SubstitutesPageContent() {
         );
         if (res.success && res.data) setMyRequests(res.data);
       } else if (activeTab === "my-applications") {
-        const res = await substituteApi.getMyApplications(
-          storeId,
-          sortOrder,
-          filterStatus,
-        );
-        if (res.success && res.data) setMyApplications(res.data);
+        // [수정됨] 데이터 구조를 안전하게 파싱하도록 개선
+        try {
+          const [subRes, osRes] = await Promise.all([
+            substituteApi.getMyApplications(storeId, sortOrder, filterStatus),
+            openShiftApi.getMyApplications(storeId).catch((e) => {
+              console.error("오픈시프트 지원 내역 로딩 실패:", e);
+              return null;
+            }),
+          ]);
+
+          // 대타 지원 내역 처리
+          if (subRes && subRes.success && subRes.data) {
+            setMyApplications(subRes.data);
+          } else {
+            setMyApplications([]);
+          }
+
+          // 오픈시프트 지원 내역 안전한 파싱
+          let osData: any[] = [];
+          if (Array.isArray(osRes)) {
+            osData = osRes;
+          } else if (osRes && typeof osRes === "object") {
+            const anyOsRes = osRes as any;
+            if (Array.isArray(anyOsRes.data)) {
+              osData = anyOsRes.data;
+            } else if (anyOsRes.data && Array.isArray(anyOsRes.data.data)) {
+              osData = anyOsRes.data.data;
+            }
+          }
+
+          console.log("최종 세팅될 오픈시프트 지원 내역:", osData);
+          setMyOpenShiftApplications(osData);
+        } catch (err) {
+          console.error("지원 내역 탭 렌더링 에러:", err);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch data:", error);
@@ -222,14 +253,12 @@ function SubstitutesPageContent() {
     fetchData();
   }, [storeId, activeTab, sortOrder, filterStatus]);
 
-  // 탭 변경 시 필터 초기화
   const handleTabChange = (tab: TabKey) => {
     setActiveTab(tab);
     setSortOrder("latest");
     setFilterStatus("ALL");
   };
 
-  // --- Handlers ---
   const handleApply = async (requestId: number) => {
     const confirmed = await showConfirmAlert({
       title: "지원 확인",
@@ -254,7 +283,6 @@ function SubstitutesPageContent() {
     }
   };
 
-  // 오픈시프트 지원 핸들러
   const handleApplyOpenShift = async (openShiftId: number) => {
     const confirmed = await showConfirmAlert({
       title: "지원 확인",
@@ -319,7 +347,6 @@ function SubstitutesPageContent() {
     }
   };
 
-  // 4. 모달 열기 (대타 요청 생성용)
   const openCreateModal = async () => {
     setIsModalOpen(true);
     setMyShifts([]);
@@ -390,7 +417,6 @@ function SubstitutesPageContent() {
     }
   };
 
-  // 5. 대타 요청 등록
   const handleSubmitRequest = async () => {
     if (!selectedShiftId) return;
     try {
@@ -418,7 +444,6 @@ function SubstitutesPageContent() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
 
@@ -433,28 +458,25 @@ function SubstitutesPageContent() {
                   대타를 구하거나, 동료의 근무를 대신해줄 수 있습니다.
                 </p>
               </div>
-              {/* 대타 요청하기 버튼은 어느 탭에서든 보이거나 특정 탭에서만 보이게 할 수 있음 */}
               <div className="mt-4 md:mt-0">
                 <Button onClick={openCreateModal}>+ 대타 요청하기</Button>
               </div>
             </div>
 
-            {/* 탭 네비게이션과 필터를 한 줄에 배치 (반응형: 모바일은 세로 배치) */}
             <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 dark:border-slate-700 gap-4">
-              {/* 왼쪽: 탭 메뉴 */}
               <nav className="-mb-px flex gap-6 overflow-x-auto">
                 <TabButton
-                  label="다른 직원 요청"
+                  label="대체 근무 요청"
                   active={activeTab === "others"}
                   onClick={() => handleTabChange("others")}
                 />
                 <TabButton
-                  label="오픈시프트 (New)"
+                  label="오픈시프트"
                   active={activeTab === "open-shifts"}
                   onClick={() => handleTabChange("open-shifts")}
                 />
                 <TabButton
-                  label="내 요청 기록"
+                  label="내 요청 내역"
                   active={activeTab === "my-requests"}
                   onClick={() => handleTabChange("my-requests")}
                 />
@@ -465,7 +487,6 @@ function SubstitutesPageContent() {
                 />
               </nav>
 
-              {/* 오른쪽: 필터 및 정렬 (오픈시프트 탭이 아닐 때만 표시하거나, 오픈시프트용 필터를 별도로 구현) */}
               {activeTab !== "open-shifts" && (
                 <div className="flex items-center gap-3 pb-2 md:pb-0">
                   <select
@@ -499,7 +520,6 @@ function SubstitutesPageContent() {
               <div className="py-12 text-center text-slate-500">로딩 중...</div>
             )}
 
-            {/* 1. 다른 직원 대타 요청 목록 */}
             {!isLoading && activeTab === "others" && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {otherRequests.length > 0 ? (
@@ -517,7 +537,6 @@ function SubstitutesPageContent() {
               </div>
             )}
 
-            {/* 2. 오픈시프트 목록 (NEW) */}
             {!isLoading && activeTab === "open-shifts" && (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                 {openShifts.length > 0 ? (
@@ -567,7 +586,6 @@ function SubstitutesPageContent() {
               </div>
             )}
 
-            {/* 3. 내 요청 목록 */}
             {!isLoading && activeTab === "my-requests" && (
               <div className="space-y-4">
                 {myRequests.length > 0 ? (
@@ -585,23 +603,49 @@ function SubstitutesPageContent() {
               </div>
             )}
 
-            {/* 4. 내 지원 내역 */}
             {!isLoading && activeTab === "my-applications" && (
-              <div className="space-y-4">
-                {myApplications.length > 0 ? (
-                  myApplications.map((app) => (
-                    <RequestRow
-                      key={app.applicationId}
-                      data={app}
-                      type="application"
-                      onAction={() =>
-                        handleCancelApplication(app.applicationId)
-                      }
-                    />
-                  ))
-                ) : (
-                  <EmptyState message="해당 조건의 지원 내역이 없습니다." />
-                )}
+              <div className="space-y-6">
+                {/* 대타 지원 내역 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 border-b pb-2">
+                    대타 지원 내역
+                  </h3>
+                  {myApplications.length > 0 ? (
+                    myApplications.map((app) => (
+                      <RequestRow
+                        key={`sub-${app.applicationId}`}
+                        data={app}
+                        type="application"
+                        onAction={() =>
+                          handleCancelApplication(app.applicationId)
+                        }
+                      />
+                    ))
+                  ) : (
+                    <div className="text-sm text-slate-500 py-4 text-center bg-slate-50 dark:bg-slate-800/30 rounded">
+                      대타 지원 내역이 없습니다.
+                    </div>
+                  )}
+                </div>
+
+                {/* 오픈시프트 지원 내역 */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 border-b pb-2">
+                    오픈시프트 (관리자 모집) 지원 내역
+                  </h3>
+                  {myOpenShiftApplications.length > 0 ? (
+                    myOpenShiftApplications.map((app) => (
+                      <OpenShiftApplicationRow
+                        key={`os-${app.id}`}
+                        data={app}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-sm text-slate-500 py-4 text-center bg-slate-50 dark:bg-slate-800/30 rounded">
+                      오픈시프트 지원 내역이 없습니다.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -661,6 +705,7 @@ function SubstitutesPageContent() {
 }
 
 // --- Sub Components ---
+
 function TabButton({
   label,
   active,
@@ -783,6 +828,44 @@ function RequestRow({
             취소
           </Button>
         )}
+      </CardBody>
+    </Card>
+  );
+}
+
+// [추가] 오픈시프트 전용 Row 컴포넌트
+function OpenShiftApplicationRow({ data }: { data: any }) {
+  // 오픈시프트 상태 매핑 (WAITING, ACCEPTED, REJECTED)
+  const statusMap: Record<
+    string,
+    { label: string; variant: BadgeProps["variant"] }
+  > = {
+    WAITING: { label: "결과대기", variant: "warning" },
+    ACCEPTED: { label: "선발됨", variant: "success" },
+    REJECTED: { label: "거절됨", variant: "error" },
+  };
+
+  const currentStatus = statusMap[data.applyStatus] || {
+    label: data.applyStatus,
+    variant: "default",
+  };
+
+  return (
+    <Card className="border-l-4 border-l-orange-400">
+      <CardBody className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <Badge variant={currentStatus.variant}>{currentStatus.label}</Badge>
+            <span className="font-semibold text-slate-900 dark:text-white">
+              {data.workDate} ({data.startTime?.substring(0, 5)} -{" "}
+              {data.endTime?.substring(0, 5)})
+            </span>
+          </div>
+          <p className="text-sm text-slate-500">
+            지원일: {data.createdAt?.split("T")[0] || "알 수 없음"}
+          </p>
+        </div>
+        {/* 오픈시프트는 현재 지원 취소 API가 없으므로 버튼 생략 */}
       </CardBody>
     </Card>
   );

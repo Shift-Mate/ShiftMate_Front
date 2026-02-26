@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -388,10 +389,7 @@ function ManagerRequestsPageContent() {
         applyId,
       );
       if (res.success) {
-        await showSuccessAlert(
-          "승인 완료",
-          "해당 직원의 스케줄이 생성됩니다.",
-        );
+        await showSuccessAlert("승인 완료", "해당 직원의 스케줄이 생성됩니다.");
         // 목록 갱신 (마감 여부 확인)
         fetchOpenShifts();
         // 지원자 목록 갱신 (상태 변경 확인)
@@ -422,8 +420,18 @@ function ManagerRequestsPageContent() {
   ).length;
   const totalCount = allRequests.length;
 
+  // OpenShift Stat Calculations
+  const osOpenCount = openShifts.filter(
+    (os) => os.requestStatus === "OPEN",
+  ).length;
+  const osRecruitingCount = openShifts.filter(
+    (os) => os.requestStatus === "RECRUITING",
+  ).length;
+  const osTotalCount = openShifts.length;
+
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
+      <StoreSidebar />
 
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
@@ -768,144 +776,195 @@ function ManagerRequestsPageContent() {
                 CATEGORY: OPEN SHIFT (오픈시프트 관리)
                ======================================================= */}
             {category === "openshift" && (
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
-                {/* 좌측: 오픈시프트 목록 */}
-                <section className="space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                      오픈시프트 목록
-                    </h3>
-                  </div>
-
-                  {isLoadingOpenShifts ? (
-                    <div className="py-12 text-center text-slate-500">
-                      로딩 중...
-                    </div>
-                  ) : openShifts.length > 0 ? (
-                    <div className="grid gap-4">
-                      {openShifts.map((os) => {
-                        const isSelected = os.id === selectedOpenShiftId;
-                        return (
-                          <button
-                            key={os.id}
-                            onClick={() => setSelectedOpenShiftId(os.id)}
-                            className={`w-full text-left rounded-xl border p-4 transition-all ${
-                              isSelected
-                                ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-sm"
-                                : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-orange-400/40"
-                            }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <Badge
-                                    variant={
-                                      os.requestStatus === "OPEN"
-                                        ? "info"
-                                        : "default"
-                                    }
-                                  >
-                                    {os.requestStatus === "OPEN"
-                                      ? "모집중"
-                                      : "마감됨"}
-                                  </Badge>
-                                  <span className="text-xs text-slate-400">
-                                    등록: {os.createdAt?.split("T")[0]}
-                                  </span>
-                                </div>
-                                <p className="font-bold text-slate-900 dark:text-white text-lg">
-                                  {os.workDate}
-                                </p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">
-                                  {os.startTime.substring(0, 5)} -{" "}
-                                  {os.endTime.substring(0, 5)}
-                                </p>
-                              </div>
-                            </div>
-                            {os.note && (
-                              <div className="mt-3 text-sm text-slate-600 dark:text-slate-300 bg-white/50 dark:bg-black/20 p-2 rounded">
-                                📝 {os.note}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="py-20 text-center text-slate-500 border border-dashed rounded-lg">
-                      생성된 오픈시프트가 없습니다.
-                    </div>
-                  )}
-                </section>
-
-                {/* 우측: 지원자 목록 */}
-                <aside className="lg:sticky lg:top-6 h-fit">
-                  <Card className="h-full border-slate-200 dark:border-slate-700 shadow-lg">
-                    <CardBody className="space-y-6">
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white border-b pb-4 border-slate-100 dark:border-slate-700">
-                        지원자 관리
-                      </h3>
-
-                      {!selectedOpenShiftId ? (
-                        <div className="py-20 text-center text-slate-500">
-                          <span className="material-icons text-4xl mb-2 opacity-50">
-                            touch_app
-                          </span>
-                          <p>좌측에서 오픈시프트를 선택하세요.</p>
-                        </div>
-                      ) : isLoadingOpenShiftApps ? (
-                        <p className="text-center py-10 text-slate-500">
-                          불러오는 중...
+              <>
+                {/* 상단 통계 카드 (오픈시프트) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <Card>
+                    <CardBody className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                          진행 중 모집
                         </p>
-                      ) : (
-                        <div className="space-y-3">
-                          {openShiftApplicants.length > 0 ? (
-                            openShiftApplicants.map((app) => (
-                              <div
-                                key={app.id}
-                                className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg bg-white dark:bg-slate-800"
-                              >
-                                <div className="flex justify-between items-center mb-2">
-                                  <div>
-                                    <p className="font-semibold text-slate-900 dark:text-white">
-                                      {app.applicantName}
-                                    </p>
-                                    <p className="text-xs text-slate-500">
-                                      {app.department}
-                                    </p>
-                                  </div>
-                                  {app.applyStatus === "ACCEPTED" && (
-                                    <Badge variant="success">승인됨</Badge>
-                                  )}
-                                  {app.applyStatus === "REJECTED" && (
-                                    <Badge variant="error">거절됨</Badge>
-                                  )}
-                                </div>
-
-                                {app.applyStatus === "WAITING" && (
-                                  <Button
-                                    size="sm"
-                                    className="w-full mt-2"
-                                    onClick={() =>
-                                      handleApproveOpenShiftApply(app.id)
-                                    }
-                                  >
-                                    승인하기
-                                  </Button>
-                                )}
-                              </div>
-                            ))
-                          ) : (
-                            <div className="py-10 text-center text-sm text-slate-500 border border-dashed rounded-lg">
-                              아직 지원자가 없습니다.
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                          {osTotalCount}
+                        </p>
+                      </div>
+                      <span className="material-icons text-primary">
+                        campaign
+                      </span>
                     </CardBody>
                   </Card>
-                </aside>
-              </div>
+                  <Card>
+                    <CardBody className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                          신규 모집 (지원 전)
+                        </p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                          {osOpenCount}
+                        </p>
+                      </div>
+                      <span className="material-icons text-blue-500">
+                        fiber_new
+                      </span>
+                    </CardBody>
+                  </Card>
+                  <Card>
+                    <CardBody className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                          검토 대기 (지원자 있음)
+                        </p>
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                          {osRecruitingCount}
+                        </p>
+                      </div>
+                      <span className="material-icons text-yellow-500">
+                        pending_actions
+                      </span>
+                    </CardBody>
+                  </Card>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
+                  {/* 좌측: 오픈시프트 목록 */}
+                  <section className="space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                        오픈시프트 목록
+                      </h3>
+                    </div>
+
+                    {isLoadingOpenShifts ? (
+                      <div className="py-12 text-center text-slate-500">
+                        로딩 중...
+                      </div>
+                    ) : openShifts.length > 0 ? (
+                      <div className="grid gap-4">
+                        {openShifts.map((os) => {
+                          const isSelected = os.id === selectedOpenShiftId;
+                          return (
+                            <button
+                              key={os.id}
+                              onClick={() => setSelectedOpenShiftId(os.id)}
+                              className={`w-full text-left rounded-xl border p-4 transition-all ${
+                                isSelected
+                                  ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20 shadow-sm"
+                                  : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:border-orange-400/40"
+                              }`}
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge
+                                      variant={
+                                        os.requestStatus === "OPEN"
+                                          ? "info"
+                                          : "warning"
+                                      }
+                                    >
+                                      {os.requestStatus === "OPEN"
+                                        ? "신규 모집중"
+                                        : "지원자 있음"}
+                                    </Badge>
+                                    <span className="text-xs text-slate-400">
+                                      등록: {os.createdAt?.split("T")[0]}
+                                    </span>
+                                  </div>
+                                  <p className="font-bold text-slate-900 dark:text-white text-lg">
+                                    {os.workDate}
+                                  </p>
+                                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {os.startTime.substring(0, 5)} -{" "}
+                                    {os.endTime.substring(0, 5)}
+                                  </p>
+                                </div>
+                              </div>
+                              {os.note && (
+                                <div className="mt-3 text-sm text-slate-600 dark:text-slate-300 bg-white/50 dark:bg-black/20 p-2 rounded">
+                                  📝 {os.note}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="py-20 text-center text-slate-500 border border-dashed rounded-lg">
+                        생성된 오픈시프트가 없습니다.
+                      </div>
+                    )}
+                  </section>
+
+                  {/* 우측: 지원자 목록 */}
+                  <aside className="lg:sticky lg:top-6 h-fit">
+                    <Card className="h-full border-slate-200 dark:border-slate-700 shadow-lg">
+                      <CardBody className="space-y-6">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white border-b pb-4 border-slate-100 dark:border-slate-700">
+                          지원자 관리
+                        </h3>
+
+                        {!selectedOpenShiftId ? (
+                          <div className="py-20 text-center text-slate-500">
+                            <span className="material-icons text-4xl mb-2 opacity-50">
+                              touch_app
+                            </span>
+                            <p>좌측에서 오픈시프트를 선택하세요.</p>
+                          </div>
+                        ) : isLoadingOpenShiftApps ? (
+                          <p className="text-center py-10 text-slate-500">
+                            불러오는 중...
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            {openShiftApplicants.length > 0 ? (
+                              openShiftApplicants.map((app) => (
+                                <div
+                                  key={app.id}
+                                  className="border border-slate-200 dark:border-slate-700 p-4 rounded-lg bg-white dark:bg-slate-800"
+                                >
+                                  <div className="flex justify-between items-center mb-2">
+                                    <div>
+                                      <p className="font-semibold text-slate-900 dark:text-white">
+                                        {app.applicantName}
+                                      </p>
+                                      <p className="text-xs text-slate-500">
+                                        {app.department}
+                                      </p>
+                                    </div>
+                                    {app.applyStatus === "ACCEPTED" && (
+                                      <Badge variant="success">승인됨</Badge>
+                                    )}
+                                    {app.applyStatus === "REJECTED" && (
+                                      <Badge variant="error">거절됨</Badge>
+                                    )}
+                                  </div>
+
+                                  {app.applyStatus === "WAITING" && (
+                                    <Button
+                                      size="sm"
+                                      className="w-full mt-2"
+                                      onClick={() =>
+                                        handleApproveOpenShiftApply(app.id)
+                                      }
+                                    >
+                                      승인하기
+                                    </Button>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="py-10 text-center text-sm text-slate-500 border border-dashed rounded-lg">
+                                아직 지원자가 없습니다.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </CardBody>
+                    </Card>
+                  </aside>
+                </div>
+              </>
             )}
           </div>
         </main>
