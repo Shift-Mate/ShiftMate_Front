@@ -8,9 +8,8 @@ import { Table } from "@/components/ui/Table";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Badge } from "@/components/ui/Badge";
 import { Card, CardBody } from "@/components/ui/Card";
-import { Employee, EmployeeStatus, Department } from "@/types/employee";
+import { Employee, Department } from "@/types/employee";
 import { userApi } from "@/lib/api/users";
 import { storeApi } from "@/lib/api/stores";
 
@@ -29,7 +28,7 @@ type StoreMemberListResDto = {
     role: string;
     department: string;
     hourlyWage: number;
-    status: string;
+    status?: string;
 };
 
 type StaffEmployee = Employee & {
@@ -46,28 +45,6 @@ const getDepartmentLabel = (dept: Department): string => {
     return labels[dept];
 };
 
-const getStatusVariant = (
-    status: EmployeeStatus
-): "success" | "warning" | "default" => {
-    switch (status) {
-        case "active":
-            return "success";
-        case "invited":
-            return "warning";
-        default:
-            return "default";
-    }
-};
-
-const getStatusLabel = (status: EmployeeStatus): string => {
-    const labels: Record<EmployeeStatus, string> = {
-        active: "활성",
-        invited: "초대됨",
-        inactive: "비활성",
-    };
-    return labels[status];
-};
-
 const isStoreMemberListResDto = (value: unknown): value is StoreMemberListResDto => {
     if (!value || typeof value !== "object") {
         return false;
@@ -81,8 +58,7 @@ const isStoreMemberListResDto = (value: unknown): value is StoreMemberListResDto
         typeof candidate.userEmail === "string" &&
         typeof candidate.role === "string" &&
         typeof candidate.department === "string" &&
-        typeof candidate.hourlyWage === "number" &&
-        typeof candidate.status === "string"
+        typeof candidate.hourlyWage === "number"
     );
 };
 
@@ -265,7 +241,6 @@ function StaffManagementPageContent() {
         department: "HALL",
         hourlyWage: "10000",
         minHoursPerWeek: "20",
-        status: "INVITED",
         pinCode: "",
     });
     const [searchQuery, setSearchQuery] = useState("");
@@ -319,9 +294,9 @@ function StaffManagementPageContent() {
                     ),
                     hourlyWage: member.hourlyWage,
                     status:
-                        member.status.toUpperCase() === "ACTIVE"
+                        (member.status ?? "").toUpperCase() === "ACTIVE"
                             ? "active"
-                            : member.status.toUpperCase() === "INACTIVE"
+                            : (member.status ?? "").toUpperCase() === "INACTIVE"
                               ? "inactive"
                               : "invited",
                     memberUserId: member.userId,
@@ -357,7 +332,6 @@ function StaffManagementPageContent() {
             department: "HALL",
             hourlyWage: "10000",
             minHoursPerWeek: "20",
-            status: "INVITED",
             pinCode: "",
         });
     };
@@ -479,7 +453,6 @@ function StaffManagementPageContent() {
             minHoursPerWeek: number;
             memberRank?: string;
             hourlyWage?: number;
-            status?: string;
             pinCode?: string;
         } = {
             email: verifiedEmail,
@@ -493,9 +466,6 @@ function StaffManagementPageContent() {
         }
         if (Number.isFinite(wage)) {
             payload.hourlyWage = wage;
-        }
-        if (inviteDetails.status.trim()) {
-            payload.status = inviteDetails.status.trim();
         }
         if (inviteDetails.pinCode.trim()) {
             payload.pinCode = inviteDetails.pinCode.trim();
@@ -545,7 +515,7 @@ function StaffManagementPageContent() {
                     inviteDetails.department
                 ),
                 hourlyWage: wage,
-                status: inviteDetails.status === "ACTIVE" ? "active" : "invited",
+                status: "invited",
                 // 생성 직후 응답에서 userId를 직접 받지 않는 흐름이라
                 // 직후 문서 페이지 이동은 재조회 이후에만 정확해진다.
                 memberUserId: userId,
@@ -605,35 +575,35 @@ function StaffManagementPageContent() {
             render: (emp: Employee) => `₩${emp.hourlyWage.toLocaleString()}`,
         },
         {
-            key: "status",
-            header: "상태",
-            render: (emp: Employee) => (
-                <Badge variant={getStatusVariant(emp.status)}>
-                    {getStatusLabel(emp.status)}
-                </Badge>
-            ),
-        },
-        {
             key: "actions",
-            header: "",
+            header: "관리",
+            width: "w-[220px]",
             render: (emp: StaffEmployee) => (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2">
                     <Link
                         href={`/store/staff/documents?storeId=${storeId}&memberUserId=${emp.memberUserId}&employeeName=${encodeURIComponent(
                             `${emp.lastName}${emp.firstName}`
                         )}`}
+                        title="직원 서류 보기"
                     >
-                        <Button variant="ghost" size="sm" className="text-blue-600">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            className="text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/50 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 whitespace-nowrap"
+                        >
                             <span className="material-icons text-sm">description</span>
+                            서류 보기
                         </Button>
                     </Link>
                     <Link
                         href={`/store/staff/preferences?storeId=${storeId}&memberId=${emp.id}&employeeName=${encodeURIComponent(
                             `${emp.lastName}${emp.firstName}`
                         )}`}
+                        title="직원 선호도 설정"
                     >
-                        <Button variant="ghost" size="sm">
+                        <Button variant="secondary" size="sm" className="whitespace-nowrap">
                             <span className="material-icons text-sm">tune</span>
+                            선호도 설정
                         </Button>
                     </Link>
                 </div>
@@ -687,14 +657,20 @@ function StaffManagementPageContent() {
                                 <CardBody className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                                            활성 직원
+                                            관리자
                                         </p>
                                         <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                                            {employees.filter((e) => e.status === "active").length}
+                                            {
+                                                employees.filter(
+                                                    (e) =>
+                                                        e.role === "manager" ||
+                                                        e.role === "admin"
+                                                ).length
+                                            }
                                         </p>
                                     </div>
                                     <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center text-green-500">
-                                        <span className="material-icons">check_circle</span>
+                                        <span className="material-icons">manage_accounts</span>
                                     </div>
                                 </CardBody>
                             </Card>
@@ -703,14 +679,18 @@ function StaffManagementPageContent() {
                                 <CardBody className="flex items-center justify-between">
                                     <div>
                                         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                                            초대 대기
+                                            일반 직원
                                         </p>
                                         <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                                            {employees.filter((e) => e.status === "invited").length}
+                                            {
+                                                employees.filter(
+                                                    (e) => e.role === "staff"
+                                                ).length
+                                            }
                                         </p>
                                     </div>
                                     <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500">
-                                        <span className="material-icons">mail</span>
+                                        <span className="material-icons">badge</span>
                                     </div>
                                 </CardBody>
                             </Card>
@@ -959,7 +939,7 @@ function StaffManagementPageContent() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4">
                                 <Input
                                     label="시급 (원)"
                                     type="number"
@@ -973,24 +953,6 @@ function StaffManagementPageContent() {
                                     }
                                     placeholder="10000"
                                 />
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-                                        상태 (선택)
-                                    </label>
-                                    <select
-                                        value={inviteDetails.status}
-                                        onChange={(e) =>
-                                            setInviteDetails((prev) => ({
-                                                ...prev,
-                                                status: e.target.value,
-                                            }))
-                                        }
-                                        className="w-full h-10 rounded-md border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 text-sm"
-                                    >
-                                        <option value="INVITED">INVITED</option>
-                                        <option value="ACTIVE">ACTIVE</option>
-                                    </select>
-                                </div>
                             </div>
                             <Input
                                 label="PIN 코드 (선택, 4~6자리 숫자)"
