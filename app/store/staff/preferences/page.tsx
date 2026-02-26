@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Button } from "@/components/ui/Button";
 import { storeApi } from "@/lib/api/stores";
@@ -246,7 +245,7 @@ const getKey = (dayOfWeek: DayOfWeek, templateId: number): string =>
 
 function StaffPreferencePageContent() {
     const searchParams = useSearchParams();
-    const storeId = searchParams.get("storeId") || "1";
+    const storeId = searchParams.get("storeId") ?? "";
     const memberId =
         searchParams.get("memberId") || searchParams.get("employeeId") || "";
     const employeeName = searchParams.get("employeeName") || "직원";
@@ -590,7 +589,6 @@ function StaffPreferencePageContent() {
 
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-            <StoreSidebar />
 
             <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
                 <MainHeader />

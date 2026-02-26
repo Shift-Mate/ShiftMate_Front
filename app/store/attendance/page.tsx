@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Button } from "@/components/ui/Button";
 import { attendanceApi, TodayAttendanceResponse } from "@/lib/api/attendance";
@@ -20,6 +19,8 @@ function AttendancePageContent() {
     "success",
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fullscreenContainerRef = useRef<HTMLDivElement | null>(null);
 
   // API로 받아온 데이터 저장
   const [todaySchedules, setTodaySchedules] = useState<
@@ -77,6 +78,17 @@ function AttendancePageContent() {
   useEffect(() => {
     fetchSchedules();
   }, [storeId]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === fullscreenContainerRef.current);
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   // --- 드롭다운 옵션 가공 (todaySchedules가 배열임을 보장하고 사용) ---
   const shiftOptions = useMemo(() => {
@@ -191,18 +203,59 @@ function AttendancePageContent() {
     }
   };
 
+  const handleToggleFullscreen = async () => {
+    const target = fullscreenContainerRef.current;
+    if (!target) return;
+
+    try {
+      if (document.fullscreenElement === target) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      if (!target.requestFullscreen) {
+        setMessageTone("error");
+        setMessage("현재 브라우저에서는 전체화면을 지원하지 않습니다.");
+        return;
+      }
+
+      await target.requestFullscreen();
+    } catch (error) {
+      console.error("전체화면 전환 실패:", error);
+      setMessageTone("error");
+      setMessage("전체화면 전환에 실패했습니다.");
+    }
+  };
+
   // storeName 표시를 위한 로직 (mock 데이터 대신 실제 데이터 활용 가능하면 좋으나, 현재는 storeId만 있으므로 단순 표시)
   const storeNameDisplay = `매장 ${storeId}`;
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <StoreSidebar />
 
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
 
         <main className="flex-1 overflow-hidden p-6">
-          <div className="h-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
+          <div ref={fullscreenContainerRef} className="relative h-full w-full">
+            <button
+              type="button"
+              onClick={handleToggleFullscreen}
+              className="absolute right-4 top-4 z-20 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 dark:border-slate-600 dark:bg-[#15232b]/90 dark:text-slate-200 dark:hover:bg-[#1f3340]"
+            >
+              <span className="material-icons text-[18px]">
+                {isFullscreen ? "fullscreen_exit" : "fullscreen"}
+              </span>
+              {isFullscreen ? "전체화면 종료" : "전체화면"}
+            </button>
+
+            <div
+              className={`h-full grid grid-cols-1 lg:grid-cols-2 overflow-hidden ${
+                isFullscreen
+                  ? "w-full bg-background-light dark:bg-background-dark"
+                  : "max-w-7xl mx-auto rounded-xl border border-slate-200 dark:border-slate-700"
+              }`}
+            >
             {/* 왼쪽 섹션: 시계 및 근무자 선택 */}
             <section className="p-8 bg-gradient-to-br from-white to-primary/5 dark:from-[#15232b] dark:to-[#101c22] border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center">
               <div className="max-w-lg mx-auto w-full">
@@ -343,6 +396,7 @@ function AttendancePageContent() {
                 </Button>
               </div>
             </section>
+            </div>
           </div>
         </main>
       </div>

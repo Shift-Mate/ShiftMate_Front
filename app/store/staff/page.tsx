@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Table } from "@/components/ui/Table";
 import { Modal } from "@/components/ui/Modal";
@@ -242,7 +241,7 @@ const mapBackendDepartmentToEmployeeDepartment = (
 
 function StaffManagementPageContent() {
     const searchParams = useSearchParams();
-    const storeId = searchParams.get("storeId") || "1";
+    const storeId = searchParams.get("storeId") ?? "";
     const storeName = useMemo(
         () => STORE_NAMES[storeId] || `매장 ${storeId}`,
         [storeId]
@@ -644,7 +643,6 @@ function StaffManagementPageContent() {
 
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-            <StoreSidebar />
 
             <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
                 <MainHeader />

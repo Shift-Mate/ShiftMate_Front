@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -55,8 +56,16 @@ export default function Home() {
                   <div className="w-3 h-3 rounded-full bg-emerald-400" />
                 </div>
               </div>
-              <div className="p-2 bg-slate-100 dark:bg-slate-900 aspect-video flex items-center justify-center">
-                <p className="text-slate-400">대시보드 미리보기</p>
+              <div className="p-2 bg-slate-100 dark:bg-slate-900 aspect-video">
+                <div className="relative h-full w-full overflow-hidden rounded-md">
+                  <Image
+                    src="/aaa.png"
+                    alt="대시보드 미리보기"
+                    fill
+                    priority
+                    className="object-cover"
+                  />
+                </div>
               </div>
             </div>
           </div>

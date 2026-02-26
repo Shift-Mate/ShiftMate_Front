@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -12,13 +11,14 @@ import {
   TodayAttendanceResponse,
   WeeklyAttendanceItemResponse,
 } from "@/lib/api/attendance";
+import { compareDateTimes, getTimePart, parseDateOnly } from "@/lib/datetime";
 import { storeApi } from "@/lib/api/stores";
 
 type TabKey = "daily" | "weekly";
 
 function MyAttendanceContent() {
   const searchParams = useSearchParams();
-  const storeId = searchParams.get("storeId") || "1";
+  const storeId = searchParams.get("storeId") ?? "";
 
   const [storeName, setStoreName] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("daily");
@@ -48,7 +48,7 @@ function MyAttendanceContent() {
   }, [currentDate]);
 
   const formatDateRange = (startDateStr: string) => {
-    const start = new Date(startDateStr);
+    const start = parseDateOnly(startDateStr);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 - ${end.getMonth() + 1}월 ${end.getDate()}일`;
@@ -98,10 +98,7 @@ function MyAttendanceContent() {
             // 시간순 정렬 (스케줄 시작 시간 시준 오름차순)
             data.sort(
               (a: TodayAttendanceResponse, b: TodayAttendanceResponse) => {
-                return (
-                  new Date(a.updatedStartTime).getTime() -
-                  new Date(b.updatedStartTime).getTime()
-                );
+                return compareDateTimes(a.updatedStartTime, b.updatedStartTime);
               },
             );
 
@@ -127,10 +124,7 @@ function MyAttendanceContent() {
                 a: WeeklyAttendanceItemResponse,
                 b: WeeklyAttendanceItemResponse,
               ) => {
-                return (
-                  new Date(a.updatedStartTime).getTime() -
-                  new Date(b.updatedStartTime).getTime()
-                );
+                return compareDateTimes(a.updatedStartTime, b.updatedStartTime);
               },
             );
 
@@ -149,15 +143,11 @@ function MyAttendanceContent() {
 
   const formatTime = (isoString: string | null) => {
     if (!isoString) return "-";
-    if (isoString.includes("T")) {
-      return isoString.split("T")[1].substring(0, 5);
-    }
-    return isoString.substring(0, 5);
+    return getTimePart(isoString);
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <StoreSidebar />
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
         <main className="flex-1 overflow-y-auto p-6">

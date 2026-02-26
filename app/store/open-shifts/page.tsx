@@ -2,7 +2,6 @@
 
 import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -88,7 +87,7 @@ const getShiftTypeColor = (type: string) => {
 
 function OpenShiftsPageContent() {
     const searchParams = useSearchParams();
-    const storeId = searchParams.get("storeId") || "1";
+    const storeId = searchParams.get("storeId") ?? "";
     const storeName = useMemo(
         () => STORE_NAMES[storeId] || `매장 ${storeId}`,
         [storeId]
@@ -101,7 +100,6 @@ function OpenShiftsPageContent() {
 
     return (
         <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-            <StoreSidebar />
 
             <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
                 <MainHeader />
