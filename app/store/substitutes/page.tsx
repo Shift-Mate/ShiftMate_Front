@@ -18,6 +18,12 @@ import {
   MySubstituteApplicationRes,
 } from "@/types/substitute";
 import { OpenShiftRes } from "@/types/openShift";
+import {
+  showConfirmAlert,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+} from "@/lib/ui/sweetAlert";
 
 // 탭 키 타입 정의 (open-shifts 추가)
 type TabKey = "others" | "open-shifts" | "my-requests" | "my-applications";
@@ -226,65 +232,91 @@ function SubstitutesPageContent() {
 
   // --- Handlers ---
   const handleApply = async (requestId: number) => {
-    if (!confirm("이 대타 요청에 지원하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "지원 확인",
+      text: "이 대타 요청에 지원하시겠습니까?",
+      confirmButtonText: "지원하기",
+    });
+    if (!confirmed) return;
     try {
       const res = await substituteApi.applySubstitute(storeId, requestId);
       if (res.success) {
-        alert("지원되었습니다. '지원 내역' 탭에서 확인하세요.");
+        await showSuccessAlert(
+          "지원 완료",
+          "'지원 내역' 탭에서 결과를 확인하세요.",
+        );
         fetchData();
       } else {
-        alert(res.error?.message || "지원 실패");
+        await showErrorAlert("지원 실패", res.error?.message || "지원 실패");
       }
     } catch (e: any) {
       const msg = e.response?.data?.message || "오류가 발생했습니다.";
-      alert(msg);
+      await showErrorAlert("오류 발생", msg);
     }
   };
 
   // 오픈시프트 지원 핸들러
   const handleApplyOpenShift = async (openShiftId: number) => {
-    if (!confirm("이 근무(오픈시프트)에 지원하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "지원 확인",
+      text: "이 근무(오픈시프트)에 지원하시겠습니까?",
+      confirmButtonText: "지원하기",
+    });
+    if (!confirmed) return;
     try {
       const res = await openShiftApi.apply(storeId, openShiftId);
       if (res.success) {
-        alert("지원되었습니다. 관리자 승인 후 근무가 확정됩니다.");
+        await showSuccessAlert(
+          "지원 완료",
+          "관리자 승인 후 근무가 확정됩니다.",
+        );
         fetchData();
       } else {
-        alert(res.error?.message || "지원 실패");
+        await showErrorAlert("지원 실패", res.error?.message || "지원 실패");
       }
     } catch (e: any) {
       const msg = e.response?.data?.message || "오류가 발생했습니다.";
-      alert(msg);
+      await showErrorAlert("오류 발생", msg);
     }
   };
 
   const handleCancelRequest = async (requestId: number) => {
-    if (!confirm("요청을 취소하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "요청 취소",
+      text: "요청을 취소하시겠습니까?",
+      confirmButtonText: "취소하기",
+    });
+    if (!confirmed) return;
     try {
       const res = await substituteApi.cancelRequest(storeId, requestId);
       if (res.success) {
-        alert("요청이 취소되었습니다.");
+        await showSuccessAlert("취소 완료", "요청이 취소되었습니다.");
         fetchData();
       } else {
-        alert(res.error?.message || "취소 실패");
+        await showErrorAlert("취소 실패", res.error?.message || "취소 실패");
       }
     } catch (e) {
-      alert("오류가 발생했습니다.");
+      await showErrorAlert("오류 발생", "오류가 발생했습니다.");
     }
   };
 
   const handleCancelApplication = async (applicationId: number) => {
-    if (!confirm("지원을 취소하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "지원 취소",
+      text: "지원을 취소하시겠습니까?",
+      confirmButtonText: "취소하기",
+    });
+    if (!confirmed) return;
     try {
       const res = await substituteApi.cancelApplication(storeId, applicationId);
       if (res.success) {
-        alert("지원이 취소되었습니다.");
+        await showSuccessAlert("취소 완료", "지원이 취소되었습니다.");
         fetchData();
       } else {
-        alert(res.error?.message || "취소 실패");
+        await showErrorAlert("취소 실패", res.error?.message || "취소 실패");
       }
     } catch (e) {
-      alert("오류가 발생했습니다.");
+      await showErrorAlert("오류 발생", "오류가 발생했습니다.");
     }
   };
 
@@ -304,7 +336,10 @@ function SubstitutesPageContent() {
           targetUserId = (userRes.data as any).id;
           setCurrentUserId(targetUserId);
         } else {
-          alert("로그인 정보를 확인할 수 없습니다.");
+          await showWarningAlert(
+            "로그인 정보 확인 필요",
+            "로그인 정보를 확인할 수 없습니다.",
+          );
           return;
         }
       } catch (e) {
@@ -366,7 +401,7 @@ function SubstitutesPageContent() {
       });
 
       if (res.success) {
-        alert("대타 요청이 등록되었습니다.");
+        await showSuccessAlert("등록 완료", "대타 요청이 등록되었습니다.");
         setIsModalOpen(false);
         setActiveTab("my-requests");
         setSortOrder("latest");
@@ -374,11 +409,11 @@ function SubstitutesPageContent() {
         setRequestReason("");
         fetchData();
       } else {
-        alert(res.error?.message || "등록 실패");
+        await showErrorAlert("등록 실패", res.error?.message || "등록 실패");
       }
     } catch (e: any) {
       const msg = e.response?.data?.message || "오류가 발생했습니다.";
-      alert(msg);
+      await showErrorAlert("오류 발생", msg);
     }
   };
 

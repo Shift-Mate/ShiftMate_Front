@@ -11,6 +11,12 @@ import { storeApi } from "@/lib/api/stores";
 import Swal from "sweetalert2"; // 이미지 업로드 알림용
 import { openShiftApi } from "@/lib/api/openShift"; // 생성 API용
 import { authApi } from "@/lib/api/auth";
+import {
+  showConfirmAlert,
+  showErrorAlert,
+  showSuccessAlert,
+  showWarningAlert,
+} from "@/lib/ui/sweetAlert";
 
 const STORE_NAMES: Record<string, string> = {
   "1": "강남점",
@@ -561,12 +567,14 @@ function StoreMainPageContent() {
 
   const handleDeleteWeekSchedules = async () => {
     if (!/^\d+$/.test(storeId)) {
-      window.alert("유효하지 않은 매장 ID입니다.");
+      await showWarningAlert("요청 오류", "유효하지 않은 매장 ID입니다.");
       return;
     }
-    const ok = window.confirm(
-      `${weekStartDate} 주차 스케줄을 모두 삭제하시겠습니까?`,
-    );
+    const ok = await showConfirmAlert({
+      title: "시간표 삭제",
+      text: `${weekStartDate} 주차 스케줄을 모두 삭제하시겠습니까?`,
+      confirmButtonText: "삭제하기",
+    });
     if (!ok) return;
 
     setIsDeletingSchedule(true);
@@ -576,11 +584,12 @@ function StoreMainPageContent() {
     );
 
     if (!response.success) {
-      window.alert(
+      await showErrorAlert(
+        "삭제 실패",
         response.error?.message ?? "스케줄 삭제 중 오류가 발생했습니다.",
       );
     } else {
-      window.alert("해당 주차 스케줄을 삭제했습니다.");
+      await showSuccessAlert("삭제 완료", "해당 주차 스케줄을 삭제했습니다.");
       setReloadKey((prev) => prev + 1);
     }
     setIsDeletingSchedule(false);
@@ -588,7 +597,7 @@ function StoreMainPageContent() {
 
   const handleAutoGenerateWeekSchedules = async () => {
     if (!/^\d+$/.test(storeId)) {
-      window.alert("유효하지 않은 매장 ID입니다.");
+      await showWarningAlert("요청 오류", "유효하지 않은 매장 ID입니다.");
       return;
     }
     setIsAutoGeneratingSchedule(true);
@@ -598,11 +607,12 @@ function StoreMainPageContent() {
     );
 
     if (!response.success) {
-      window.alert(
+      await showErrorAlert(
+        "자동 생성 실패",
         response.error?.message ?? "시간표 자동 생성 중 오류가 발생했습니다.",
       );
     } else {
-      window.alert("해당 주차 시간표를 자동 생성했습니다.");
+      await showSuccessAlert("생성 완료", "해당 주차 시간표를 자동 생성했습니다.");
       setReloadKey((prev) => prev + 1);
     }
     setIsAutoGeneratingSchedule(false);
@@ -763,11 +773,10 @@ function StoreMainPageContent() {
   ) => {
     if (templateId <= 0) {
       // ID가 없는 경우(임시행 등) 처리
-      Swal.fire({
-        icon: "warning",
-        title: "생성 불가",
-        text: "이 근무 파트의 ID 정보를 불러오지 못했습니다.",
-      });
+      void showWarningAlert(
+        "생성 불가",
+        "이 근무 파트의 ID 정보를 불러오지 못했습니다.",
+      );
       return;
     }
     setSelectedSlot({ templateId, date, timeLabel: time });

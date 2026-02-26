@@ -16,6 +16,11 @@ import {
   RequestStatus,
 } from "@/types/substitute";
 import { OpenShiftRes, OpenShiftApplyRes } from "@/types/openShift";
+import {
+  showConfirmAlert,
+  showErrorAlert,
+  showSuccessAlert,
+} from "@/lib/ui/sweetAlert";
 
 type BadgeVariant = "default" | "success" | "warning" | "error" | "info";
 type RequestCategory = "substitute" | "openshift";
@@ -277,7 +282,12 @@ function ManagerRequestsPageContent() {
 
   const handleAcceptApplicant = async (applicationId: number) => {
     if (!storeId || !selectedRequestId) return;
-    if (!confirm("해당 직원을 대타 근무자로 승인하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "승인 확인",
+      text: "해당 직원을 대타 근무자로 승인하시겠습니까?",
+      confirmButtonText: "승인하기",
+    });
+    if (!confirmed) return;
 
     try {
       const response = await substituteApi.approveApplication(
@@ -286,20 +296,28 @@ function ManagerRequestsPageContent() {
         applicationId,
       );
       if (response.success) {
-        alert("승인되었습니다.");
+        await showSuccessAlert("승인 완료", "승인되었습니다.");
         fetchSubstituteRequests();
         fetchAllSubstituteRequests();
       } else {
-        alert(response.error?.message || "처리 실패");
+        await showErrorAlert(
+          "처리 실패",
+          response.error?.message || "처리 실패",
+        );
       }
     } catch (e) {
-      alert("서버 오류가 발생했습니다.");
+      await showErrorAlert("오류 발생", "서버 오류가 발생했습니다.");
     }
   };
 
   const handleRejectApplicant = async (applicationId: number) => {
     if (!storeId || !selectedRequestId) return;
-    if (!confirm("지원을 거절하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "거절 확인",
+      text: "지원을 거절하시겠습니까?",
+      confirmButtonText: "거절하기",
+    });
+    if (!confirmed) return;
 
     try {
       await substituteApi.rejectApplication(
@@ -318,13 +336,18 @@ function ManagerRequestsPageContent() {
         setApplicants(response.data);
       }
     } catch (e) {
-      alert("처리 중 오류가 발생했습니다.");
+      await showErrorAlert("오류 발생", "처리 중 오류가 발생했습니다.");
     }
   };
 
   const handleCancelRequest = async () => {
     if (!storeId || !selectedRequestId) return;
-    if (!confirm("정말 이 대타 요청을 취소하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "요청 취소",
+      text: "정말 이 대타 요청을 취소하시겠습니까?",
+      confirmButtonText: "취소하기",
+    });
+    if (!confirmed) return;
 
     try {
       const response = await substituteApi.managerCancelRequest(
@@ -332,15 +355,18 @@ function ManagerRequestsPageContent() {
         selectedRequestId,
       );
       if (response.success) {
-        alert("요청이 취소되었습니다.");
+        await showSuccessAlert("취소 완료", "요청이 취소되었습니다.");
         fetchSubstituteRequests();
         fetchAllSubstituteRequests();
         setSelectedRequestId(null);
       } else {
-        alert(response.error?.message || "취소 실패");
+        await showErrorAlert(
+          "취소 실패",
+          response.error?.message || "취소 실패",
+        );
       }
     } catch (e) {
-      alert("서버 통신 오류");
+      await showErrorAlert("오류 발생", "서버 통신 오류");
     }
   };
 
@@ -349,7 +375,12 @@ function ManagerRequestsPageContent() {
   // =========================
   const handleApproveOpenShiftApply = async (applyId: number) => {
     if (!storeId || !selectedOpenShiftId) return;
-    if (!confirm("이 지원자를 승인하시겠습니까?")) return;
+    const confirmed = await showConfirmAlert({
+      title: "승인 확인",
+      text: "이 지원자를 승인하시겠습니까?",
+      confirmButtonText: "승인하기",
+    });
+    if (!confirmed) return;
 
     try {
       const res = await openShiftApi.approve(
@@ -358,7 +389,10 @@ function ManagerRequestsPageContent() {
         applyId,
       );
       if (res.success) {
-        alert("승인되었습니다. 해당 직원의 스케줄이 생성됩니다.");
+        await showSuccessAlert(
+          "승인 완료",
+          "해당 직원의 스케줄이 생성됩니다.",
+        );
         // 목록 갱신 (마감 여부 확인)
         fetchOpenShifts();
         // 지원자 목록 갱신 (상태 변경 확인)
@@ -369,11 +403,11 @@ function ManagerRequestsPageContent() {
         if (appsRes.success && appsRes.data)
           setOpenShiftApplicants(appsRes.data);
       } else {
-        alert(res.error?.message || "승인 실패");
+        await showErrorAlert("승인 실패", res.error?.message || "승인 실패");
       }
     } catch (e: any) {
       const msg = e.response?.data?.message || "오류가 발생했습니다.";
-      alert(msg);
+      await showErrorAlert("오류 발생", msg);
     }
   };
 
