@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Swal from "sweetalert2";
 import { MainHeader } from "@/components/layout/MainHeader";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
@@ -346,7 +345,6 @@ function StaffMemberDocumentsPageContent() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <StoreSidebar />
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
         <main className="flex-1 overflow-y-auto p-6">

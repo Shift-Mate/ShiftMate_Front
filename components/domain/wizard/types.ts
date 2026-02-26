@@ -1,4 +1,15 @@
 export type TemplateType = "COSTSAVER" | "HIGHSERVICE";
+export type ShiftType = "NORMAL" | "PEAK";
+
+export type WizardTemplateResDto = {
+    id: number;
+    templateType: TemplateType | null;
+    shiftType: ShiftType;
+    name: string | null;
+    startTime: string;
+    endTime: string;
+    requiredStaff: number | null;
+};
 
 export type StaffingByShift = {
     opening: number;

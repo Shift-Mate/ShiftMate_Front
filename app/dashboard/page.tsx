@@ -345,7 +345,7 @@ export default function DashboardPage() {
                                     <StoreCard
                                         key={store.id}
                                         store={store}
-                                        href={`/store?storeId=${store.id}&role=manager`}
+                                        href={`/store?storeId=${store.id}`}
                                         onDelete={setStoreToDelete}
                                         isDeleting={isDeleting && storeToDelete?.id === store.id}
                                     />

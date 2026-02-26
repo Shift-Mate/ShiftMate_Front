@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -86,7 +85,7 @@ const getWeeklyStatusText = (day: WeeklyDay) => {
 
 function WorkStatusPageContent() {
   const searchParams = useSearchParams();
-  const storeId = searchParams.get("storeId") || "1";
+  const storeId = searchParams.get("storeId") ?? "";
   const [storeName, setStoreName] = useState("");
 
   const [viewMode, setViewMode] = useState<ViewMode>("daily");
@@ -334,7 +333,6 @@ function WorkStatusPageContent() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <StoreSidebar />
 
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />

@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { StoreSidebar } from "@/components/domain/StoreSidebar";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { ScheduleGrid } from "@/components/ui/ScheduleGrid";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -13,6 +12,14 @@ import {
   attendanceApi,
   WeeklyAttendanceItemResponse,
 } from "@/lib/api/attendance";
+import {
+  diffDateTimeMinutes,
+  getDatePart,
+  getHourFromDateTime,
+  getTimePart,
+  parseDateOnly,
+  toDateTimeEpochMs,
+} from "@/lib/datetime";
 import { scheduleApi } from "@/lib/api/schedules";
 import { storeApi } from "@/lib/api/stores";
 import { userApi, storeMemberApi } from "@/lib/api/users";
@@ -25,7 +32,7 @@ interface ExtendedShift extends Shift {
 
 function MySchedulePageContent() {
   const searchParams = useSearchParams();
-  const storeId = searchParams.get("storeId") || "1";
+  const storeId = searchParams.get("storeId") ?? "";
 
   // 상태 관리
   const [storeName, setStoreName] = useState("");
@@ -115,7 +122,7 @@ function MySchedulePageContent() {
 
   // 날짜 포맷터
   const formatDateRange = (startDateStr: string) => {
-    const start = new Date(startDateStr);
+    const start = parseDateOnly(startDateStr);
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
     return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 - ${end.getMonth() + 1}월 ${end.getDate()}일`;
@@ -147,29 +154,21 @@ function MySchedulePageContent() {
 
           // 데이터 매핑
           const mappedShifts: ExtendedShift[] = weeklyData.map((item) => {
-            const startObj = new Date(item.updatedStartTime);
-            const endObj = new Date(item.updatedEndTime);
-
             // 근무 시간 차이 계산
-            const diffMs = endObj.getTime() - startObj.getTime();
-            const diffMins = Math.floor(diffMs / (1000 * 60));
+            const diffMins = diffDateTimeMinutes(
+              item.updatedStartTime,
+              item.updatedEndTime,
+            );
 
             // 유효한 근무 시간인 경우 합산
             if (diffMins > 0) {
               calculatedTotalMinutes += diffMins;
             }
 
-            const dateStr =
-              startObj.getFullYear() +
-              "-" +
-              String(startObj.getMonth() + 1).padStart(2, "0") +
-              "-" +
-              String(startObj.getDate()).padStart(2, "0");
-
-            const startTimeStr = startObj.toTimeString().substring(0, 5);
-            const endTimeStr = endObj.toTimeString().substring(0, 5);
-
-            const hour = startObj.getHours();
+            const dateStr = getDatePart(item.updatedStartTime);
+            const startTimeStr = getTimePart(item.updatedStartTime);
+            const endTimeStr = getTimePart(item.updatedEndTime);
+            const hour = getHourFromDateTime(item.updatedStartTime);
             let type: ShiftType = "middle";
             if (hour < 12) type = "opening";
             else if (hour >= 17) type = "closing";
@@ -224,11 +223,13 @@ function MySchedulePageContent() {
   // 모달 핸들러
   const handleOpenModal = () => {
     setIsModalOpen(true);
-    const now = new Date();
+    const nowMs = Date.now();
+    const after24HoursMs = nowMs + 24 * 60 * 60 * 1000;
+
     const availableShifts = shifts.filter((s) => {
-      const shiftDate = new Date(`${s.date}T${s.endTime}`);
-      const after24Hours = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-      return shiftDate > after24Hours && !s.isRequested;
+      const shiftMs = toDateTimeEpochMs(`${s.date}T${s.endTime}`);
+      if (Number.isNaN(shiftMs)) return false;
+      return shiftMs > after24HoursMs && !s.isRequested;
     });
 
     if (availableShifts.length > 0) {
@@ -270,7 +271,6 @@ function MySchedulePageContent() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
-      <StoreSidebar />
 
       <div className="flex-1 flex flex-col md:pl-64 min-w-0 overflow-hidden">
         <MainHeader />
@@ -424,13 +424,12 @@ function MySchedulePageContent() {
           >
             <option value="">근무 선택</option>
             {shifts.map((shift) => {
-              const shiftDate = new Date(`${shift.date}T${shift.endTime}`);
-              const now = new Date();
-              const after24Hours = new Date(
-                now.getTime() + 24 * 60 * 60 * 1000,
+              const shiftMs = toDateTimeEpochMs(
+                `${shift.date}T${shift.endTime}`,
               );
-
-              const isPast = shiftDate <= after24Hours;
+              const isPast = Number.isNaN(shiftMs)
+                ? true
+                : shiftMs <= Date.now() + 24 * 60 * 60 * 1000;
               const isRequested = shift.isRequested;
               const isDisabled = isPast || isRequested;
 

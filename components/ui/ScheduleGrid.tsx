@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Shift } from "@/types/schedule";
+import { diffDateKeys, getTodayDateKeyInKst, parseDateOnly } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 interface ScheduleGridProps {
@@ -48,8 +49,8 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 }) => {
   // 1. 날짜 계산 로직 추가
   const weekDays = useMemo(() => {
-    const start = new Date(weekStart);
-    const todayStr = new Date().toISOString().split("T")[0]; 
+    const start = parseDateOnly(weekStart);
+    const todayStr = getTodayDateKeyInKst();
 
     return DAYS.map((dayName, index) => {
       const current = new Date(start);
@@ -70,16 +71,7 @@ export const ScheduleGrid: React.FC<ScheduleGridProps> = ({
 
   const getShiftForDayAndTime = (dayIndex: number, time: string) => {
     return shifts.find((shift) => {
-      const shiftDate = new Date(shift.date);
-      const weekStartDate = new Date(weekStart);
-
-      // 날짜 차이 계산 시 시간대(Timezone) 문제 방지를 위해 자정 기준으로 설정
-      shiftDate.setHours(0, 0, 0, 0);
-      weekStartDate.setHours(0, 0, 0, 0);
-
-      const daysDiff = Math.floor(
-        (shiftDate.getTime() - weekStartDate.getTime()) / (1000 * 60 * 60 * 24),
-      );
+      const daysDiff = diffDateKeys(weekStart, shift.date);
 
       return (
         daysDiff === dayIndex && shift.startTime <= time && shift.endTime > time

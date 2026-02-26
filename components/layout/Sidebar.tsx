@@ -20,7 +20,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, userRole = "employee
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const storeId = searchParams.get("storeId");
-    const role = searchParams.get("role");
 
     const getHrefWithStoreContext = (href: string) => {
         const isStoreRoute = pathname.startsWith("/store") && href.startsWith("/store");
@@ -28,7 +27,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ navItems, userRole = "employee
 
         const params = new URLSearchParams();
         if (storeId) params.set("storeId", storeId);
-        if (role) params.set("role", role);
         const query = params.toString();
 
         return query ? `${href}?${query}` : href;

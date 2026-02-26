@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MainHeader } from "@/components/layout/MainHeader";
 import { Card, CardBody, CardHeader } from "@/components/ui/Card";
@@ -10,9 +10,13 @@ import { WizardStep1StoreInfo } from "@/components/domain/wizard/WizardStep1Stor
 import { WizardStep2PeakTime } from "@/components/domain/wizard/WizardStep2PeakTime";
 import { WizardStep3ShiftLogic } from "@/components/domain/wizard/WizardStep3ShiftLogic";
 import { WizardStep4Staffing } from "@/components/domain/wizard/WizardStep4Staffing";
-import { WizardFormData } from "@/components/domain/wizard/types";
+import {
+    TemplateType,
+    WizardFormData,
+    WizardTemplateResDto,
+} from "@/components/domain/wizard/types";
 import { storeApi } from "@/lib/api/stores";
-import { showSuccessAlert, showWarningAlert } from "@/lib/ui/sweetAlert";
+import { showConfirmAlert, showSuccessAlert, showWarningAlert } from "@/lib/ui/sweetAlert";
 
 type StepKey = "business" | "store" | "peak" | "logic" | "staffing";
 
@@ -126,6 +130,48 @@ const parseApiResult = <T,>(response: {
     };
 };
 
+const isTemplateType = (value: unknown): value is TemplateType =>
+    value === "COSTSAVER" || value === "HIGHSERVICE";
+
+const parseTemplateRows = (rawData: unknown): WizardTemplateResDto[] => {
+    let rows: unknown[] = [];
+
+    if (Array.isArray(rawData)) {
+        rows = rawData;
+    } else if (isApiEnvelope<unknown[]>(rawData) && rawData.success && Array.isArray(rawData.data)) {
+        rows = rawData.data;
+    }
+
+    return rows
+        .map((row, index) => {
+            if (!row || typeof row !== "object") {
+                return null;
+            }
+
+            const candidate = row as Record<string, unknown>;
+            const startTime = typeof candidate.startTime === "string" ? candidate.startTime : null;
+            const endTime = typeof candidate.endTime === "string" ? candidate.endTime : null;
+
+            if (!startTime || !endTime) {
+                return null;
+            }
+
+            return {
+                id: typeof candidate.id === "number" ? candidate.id : index + 1,
+                templateType: isTemplateType(candidate.templateType)
+                    ? candidate.templateType
+                    : null,
+                shiftType: candidate.shiftType === "PEAK" ? "PEAK" : "NORMAL",
+                name: typeof candidate.name === "string" ? candidate.name : null,
+                startTime,
+                endTime,
+                requiredStaff:
+                    typeof candidate.requiredStaff === "number" ? candidate.requiredStaff : null,
+            };
+        })
+        .filter((row): row is WizardTemplateResDto => row !== null);
+};
+
 const toMinutes = (time: string): number => {
     const [hourText, minuteText] = time.split(":");
     return Number(hourText) * 60 + Number(minuteText);
@@ -141,6 +187,108 @@ const formatBizno = (value: string): string => {
     return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
 };
 
+const normalizeTemplateRows = (
+    templates: WizardTemplateResDto[]
+): Record<TemplateType, WizardTemplateResDto[]> => {
+    const grouped: Record<TemplateType, WizardTemplateResDto[]> = {
+        COSTSAVER: [],
+        HIGHSERVICE: [],
+    };
+
+    templates.forEach((template) => {
+        if (template.templateType && grouped[template.templateType]) {
+            grouped[template.templateType].push(template);
+        }
+    });
+
+    return {
+        COSTSAVER: [...grouped.COSTSAVER].sort(
+            (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)
+        ),
+        HIGHSERVICE: [...grouped.HIGHSERVICE].sort(
+            (a, b) => toMinutes(a.startTime) - toMinutes(b.startTime)
+        ),
+    };
+};
+
+const sortTemplatesByStart = (
+    templates: WizardTemplateResDto[]
+): WizardTemplateResDto[] =>
+    [...templates].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+
+const getDefaultTemplateName = (template: WizardTemplateResDto, index: number): string => {
+    const trimmed = template.name?.trim();
+    if (trimmed) {
+        return trimmed;
+    }
+    return template.shiftType === "PEAK" ? "Peak" : `Shift ${index + 1}`;
+};
+
+const buildInitialStaffingByTemplateId = (
+    templates: WizardTemplateResDto[],
+    previous: Record<number, number>,
+    fallback: WizardFormData["staffing"]
+): Record<number, number> => {
+    const sorted = sortTemplatesByStart(templates);
+    const normalTemplates = sorted.filter((template) => template.shiftType !== "PEAK");
+    const firstNormalId = normalTemplates[0]?.id;
+    const lastNormalId = normalTemplates[normalTemplates.length - 1]?.id;
+
+    const next: Record<number, number> = {};
+
+    sorted.forEach((template) => {
+        const existing = previous[template.id];
+        if (typeof existing === "number" && existing >= 1) {
+            next[template.id] = existing;
+            return;
+        }
+
+        if (typeof template.requiredStaff === "number" && template.requiredStaff >= 1) {
+            next[template.id] = template.requiredStaff;
+            return;
+        }
+
+        if (template.shiftType === "PEAK") {
+            next[template.id] = fallback.middle;
+            return;
+        }
+
+        if (template.id === firstNormalId) {
+            next[template.id] = fallback.opening;
+            return;
+        }
+
+        if (template.id === lastNormalId) {
+            next[template.id] = fallback.closing;
+            return;
+        }
+
+        next[template.id] = fallback.middle;
+    });
+
+    return next;
+};
+
+const buildInitialTemplateNamesById = (
+    templates: WizardTemplateResDto[],
+    previous: Record<number, string>
+): Record<number, string> => {
+    const sorted = sortTemplatesByStart(templates);
+    const next: Record<number, string> = {};
+
+    sorted.forEach((template, index) => {
+        const existing = previous[template.id]?.trim();
+        if (existing) {
+            next[template.id] = existing;
+            return;
+        }
+
+        next[template.id] = getDefaultTemplateName(template, index);
+    });
+
+    return next;
+};
+
 export default function WizardPage() {
     const router = useRouter();
     const [data, setData] = useState<WizardFormData>(initialData);
@@ -149,6 +297,16 @@ export default function WizardPage() {
     const [verifyError, setVerifyError] = useState<string | null>(null);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [storeId, setStoreId] = useState<string | null>(null);
+    const [templateRows, setTemplateRows] = useState<WizardTemplateResDto[]>([]);
+    const [selectedTypeRows, setSelectedTypeRows] = useState<WizardTemplateResDto[]>([]);
+    const [staffingByTemplateId, setStaffingByTemplateId] = useState<Record<number, number>>({});
+    const [templateNamesById, setTemplateNamesById] = useState<Record<number, string>>({});
+    const [isWizardFinalized, setIsWizardFinalized] = useState(false);
+
+    const storeIdRef = useRef<string | null>(null);
+    const isWizardFinalizedRef = useRef(false);
+    const isCleanupInFlightRef = useRef(false);
 
     const visibleSteps: StepKey[] = ["business", "store", "peak", "logic", "staffing"];
 
@@ -156,13 +314,215 @@ export default function WizardPage() {
     const isFirstStep = currentStepIndex === 0;
     const isLastStep = currentStepIndex === visibleSteps.length - 1;
 
+    const templatesByType = useMemo(() => normalizeTemplateRows(templateRows), [templateRows]);
+
+    useEffect(() => {
+        storeIdRef.current = storeId;
+    }, [storeId]);
+
+    useEffect(() => {
+        isWizardFinalizedRef.current = isWizardFinalized;
+    }, [isWizardFinalized]);
+
     const handlePatch = (patch: Partial<WizardFormData>) => {
         setData((prev) => ({ ...prev, ...patch }));
-
-        if ("businessId" in patch || "openTime" in patch || "closeTime" in patch) {
-            setSubmitError(null);
-        }
+        setSubmitError(null);
     };
+
+    const handleStaffingChange = (templateId: number, nextCount: number) => {
+        const sanitized = Math.max(1, Math.min(20, nextCount));
+        setStaffingByTemplateId((prev) => ({
+            ...prev,
+            [templateId]: sanitized,
+        }));
+        setSubmitError(null);
+    };
+
+    const handleTemplateNameChange = (templateId: number, nextName: string) => {
+        setTemplateNamesById((prev) => ({
+            ...prev,
+            [templateId]: nextName.slice(0, 40),
+        }));
+        setSubmitError(null);
+    };
+
+    const markWizardFinalized = () => {
+        isWizardFinalizedRef.current = true;
+        setIsWizardFinalized(true);
+    };
+
+    const cleanupCreatedStore = useCallback(
+        async ({
+            resetState = true,
+            silent = false,
+        }: { resetState?: boolean; silent?: boolean } = {}): Promise<boolean> => {
+            const targetStoreId = storeIdRef.current;
+            if (!targetStoreId || isWizardFinalizedRef.current) {
+                return true;
+            }
+
+            if (isCleanupInFlightRef.current) {
+                return false;
+            }
+
+            isCleanupInFlightRef.current = true;
+
+            const tryDeleteStore = async (): Promise<boolean> => {
+                const deleteStoreResponse = await storeApi.deleteStore(targetStoreId);
+                const deletedStore = parseApiResult<null>(deleteStoreResponse);
+                if (deletedStore.success) {
+                    return true;
+                }
+                const code = deletedStore.error?.code ?? "";
+                if (code === "STORE_NOT_FOUND" || code === "404") {
+                    return true;
+                }
+                return false;
+            };
+
+            let deleted = await tryDeleteStore();
+            if (!deleted) {
+                const deleteTemplateResponse = await storeApi.deleteShiftTemplate(targetStoreId);
+                const deletedTemplate = parseApiResult<null>(deleteTemplateResponse);
+                if (!deletedTemplate.success) {
+                    const code = deletedTemplate.error?.code ?? "";
+                    if (code !== "TEMPLATE_NOT_FOUND" && code !== "404") {
+                        if (!silent) {
+                            setSubmitError(
+                                deletedTemplate.error?.message ??
+                                    "생성 중 데이터 삭제에 실패했습니다."
+                            );
+                        }
+                        isCleanupInFlightRef.current = false;
+                        return false;
+                    }
+                }
+
+                deleted = await tryDeleteStore();
+            }
+
+            isCleanupInFlightRef.current = false;
+            if (!deleted) {
+                if (!silent) {
+                    setSubmitError("생성 중 데이터 삭제에 실패했습니다.");
+                }
+                return false;
+            }
+
+            storeIdRef.current = null;
+            if (resetState) {
+                setStoreId(null);
+                setTemplateRows([]);
+                setSelectedTypeRows([]);
+                setStaffingByTemplateId({});
+                setTemplateNamesById({});
+            }
+            return true;
+        },
+        []
+    );
+
+    const confirmExitAndCleanup = useCallback(async (): Promise<boolean> => {
+        if (!storeIdRef.current || isWizardFinalizedRef.current) {
+            return true;
+        }
+
+        const shouldLeave = await showConfirmAlert({
+            title: "매장 생성 중단",
+            text: "이동하면 기존 데이터는 삭제됩니다. 계속하시겠습니까?",
+            confirmButtonText: "이동",
+            cancelButtonText: "취소",
+        });
+
+        if (!shouldLeave) {
+            return false;
+        }
+
+        setIsSubmitting(true);
+        setSubmitError(null);
+        const cleaned = await cleanupCreatedStore();
+        setIsSubmitting(false);
+        return cleaned;
+    }, [cleanupCreatedStore]);
+
+    useEffect(() => {
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            if (!storeIdRef.current || isWizardFinalizedRef.current) {
+                return;
+            }
+            event.preventDefault();
+            event.returnValue = "이동하면 기존 데이터는 삭제됩니다.";
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (!storeIdRef.current || isWizardFinalizedRef.current) {
+                return;
+            }
+            void cleanupCreatedStore({ resetState: false, silent: true });
+        };
+    }, [cleanupCreatedStore]);
+
+    useEffect(() => {
+        const handleInternalLinkClick = (event: MouseEvent) => {
+            if (!storeIdRef.current || isWizardFinalizedRef.current) {
+                return;
+            }
+            if (
+                event.defaultPrevented ||
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+            ) {
+                return;
+            }
+
+            const target = event.target as HTMLElement | null;
+            const anchor = target?.closest("a[href]");
+            if (!anchor) {
+                return;
+            }
+
+            const rawHref = anchor.getAttribute("href");
+            if (!rawHref || rawHref.startsWith("#") || rawHref.startsWith("javascript:")) {
+                return;
+            }
+
+            const url = new URL(rawHref, window.location.origin);
+            if (url.origin !== window.location.origin) {
+                return;
+            }
+
+            const nextPath = `${url.pathname}${url.search}${url.hash}`;
+            const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            if (nextPath === currentPath) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            void (async () => {
+                const canLeave = await confirmExitAndCleanup();
+                if (canLeave) {
+                    router.push(nextPath);
+                }
+            })();
+        };
+
+        document.addEventListener("click", handleInternalLinkClick, true);
+        return () => {
+            document.removeEventListener("click", handleInternalLinkClick, true);
+        };
+    }, [confirmExitAndCleanup, router]);
 
     const handleVerifyBizno = async () => {
         setIsVerifyingBizno(true);
@@ -194,9 +554,10 @@ export default function WizardPage() {
         setIsVerifyingBizno(false);
     };
 
-    const submitWizard = async () => {
-        setIsSubmitting(true);
-        setSubmitError(null);
+    const ensureStoreCreated = async (): Promise<string | null> => {
+        if (storeId) {
+            return storeId;
+        }
 
         const createStoreResponse = await storeApi.createWizardStore({
             name: data.storeName.trim(),
@@ -206,9 +567,7 @@ export default function WizardPage() {
             nShifts: data.shiftsPerDay,
             brn: formatBizno(data.businessId),
             alias: data.alias.trim() || undefined,
-            monthlySales: data.monthlySales.trim()
-                ? Number(data.monthlySales)
-                : undefined,
+            monthlySales: data.monthlySales.trim() ? Number(data.monthlySales) : undefined,
         });
 
         const createdStore = parseApiResult<StoreResDto>(createStoreResponse);
@@ -221,43 +580,94 @@ export default function WizardPage() {
             } else {
                 setSubmitError(createdStore.error?.message ?? "매장 생성에 실패했습니다.");
             }
-            setIsSubmitting(false);
+            return null;
+        }
+
+        const createdStoreId = String(createdStore.data.id);
+        setStoreId(createdStoreId);
+        return createdStoreId;
+    };
+
+    const loadTemplateRows = async (targetStoreId: string): Promise<boolean> => {
+        const templateResponse = await storeApi.getShiftTemplate(targetStoreId);
+        const templateResult = parseApiResult<unknown>(templateResponse);
+
+        if (!templateResult.success) {
+            setSubmitError(templateResult.error?.message ?? "템플릿 조회에 실패했습니다.");
+            return false;
+        }
+
+        setTemplateRows(parseTemplateRows(templateResult.data));
+        return true;
+    };
+
+    const loadSelectedTypeRows = async (targetStoreId: string): Promise<boolean> => {
+        const templateByTypeResponse = await storeApi.getShiftTemplateByType(targetStoreId);
+        const templateByTypeResult = parseApiResult<unknown>(templateByTypeResponse);
+
+        if (!templateByTypeResult.success) {
+            setSubmitError(
+                templateByTypeResult.error?.message ?? "선택된 타입의 템플릿 조회에 실패했습니다."
+            );
+            return false;
+        }
+
+        const parsedRows = sortTemplatesByStart(parseTemplateRows(templateByTypeResult.data));
+        setSelectedTypeRows(parsedRows);
+        setStaffingByTemplateId((prev) =>
+            buildInitialStaffingByTemplateId(parsedRows, prev, data.staffing)
+        );
+        setTemplateNamesById((prev) => buildInitialTemplateNamesById(parsedRows, prev));
+        return true;
+    };
+
+    const submitWizard = async () => {
+        if (!storeId) {
+            setSubmitError("매장 정보가 없습니다. 3단계부터 다시 진행해 주세요.");
             return;
         }
 
-        const storeId = String(createdStore.data.id);
+        if (selectedTypeRows.length === 0) {
+            setSubmitError("선택된 타입의 시프트가 없습니다. 4단계에서 다시 선택해 주세요.");
+            return;
+        }
 
-        const templateCreateResponse = await storeApi.createShiftTemplate(storeId, {
-            peak: data.peakTimeEnabled,
-            peakStartTime: data.peakTimeEnabled ? data.peakStart : undefined,
-            peakEndTime: data.peakTimeEnabled ? data.peakEnd : undefined,
+        const invalidTemplate = selectedTypeRows.find((template) => {
+            const count = staffingByTemplateId[template.id];
+            return !Number.isFinite(count) || count < 1;
         });
+        if (invalidTemplate) {
+            setSubmitError("모든 시프트의 선호 인원을 1명 이상 입력해 주세요.");
+            return;
+        }
 
-        const templateCreated = parseApiResult<null>(templateCreateResponse);
-        if (!templateCreated.success) {
-            const code = templateCreated.error?.code ?? "";
-            if (code === "INVALID_TIME_RANGE") {
-                setSubmitError("피크 시작 시간은 종료 시간보다 빨라야 합니다.");
-            } else if (code === "TEMPLATE_ALREADY_EXISTS") {
-                setSubmitError("이미 템플릿이 생성된 매장입니다.");
-            } else {
-                setSubmitError(
-                    templateCreated.error?.message ?? "템플릿 생성 중 오류가 발생했습니다."
-                );
+        const invalidNameTemplate = selectedTypeRows.find((template, index) => {
+            const name = templateNamesById[template.id] ?? getDefaultTemplateName(template, index);
+            return name.trim().length === 0;
+        });
+        if (invalidNameTemplate) {
+            setSubmitError("모든 시프트의 이름을 입력해 주세요.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        setSubmitError(null);
+
+        for (const [index, template] of selectedTypeRows.entries()) {
+            const candidateName =
+                templateNamesById[template.id] ?? getDefaultTemplateName(template, index);
+            const shiftName = candidateName.trim();
+
+            const response = await storeApi.updateTemplateStaff(storeId, template.id, {
+                requiredStaff: staffingByTemplateId[template.id],
+                name: shiftName,
+            });
+            const updated = parseApiResult<unknown>(response);
+            if (!updated.success) {
+                setSubmitError(updated.error?.message ?? "시프트 인원 설정에 실패했습니다.");
+                setIsSubmitting(false);
+                return;
             }
-            setIsSubmitting(false);
-            return;
-        }
-
-        const typeUpdateResponse = await storeApi.updateTemplateType(storeId, {
-            templateType: data.templateType,
-        });
-        const typeUpdated = parseApiResult<null>(typeUpdateResponse);
-
-        if (!typeUpdated.success) {
-            setSubmitError(typeUpdated.error?.message ?? "템플릿 타입 설정에 실패했습니다.");
-            setIsSubmitting(false);
-            return;
         }
 
         const cleanupResponse = await storeApi.deleteOtherTemplateTypes(storeId);
@@ -271,6 +681,7 @@ export default function WizardPage() {
                     "일부 처리 실패",
                     "매장은 생성되었지만 템플릿 정리 중 오류가 발생했습니다. 관리자에게 문의해 주세요."
                 );
+                markWizardFinalized();
                 router.push("/dashboard");
                 return;
             }
@@ -281,6 +692,7 @@ export default function WizardPage() {
         }
 
         await showSuccessAlert("생성 완료", "매장과 시프트 템플릿이 생성되었습니다.");
+        markWizardFinalized();
         router.push("/dashboard");
     };
 
@@ -301,6 +713,22 @@ export default function WizardPage() {
             return toMinutes(data.peakStart) < toMinutes(data.peakEnd);
         }
 
+        if (currentStep === "logic") {
+            return data.templateType === "COSTSAVER" || data.templateType === "HIGHSERVICE";
+        }
+
+        if (currentStep === "staffing") {
+            return (
+                selectedTypeRows.length > 0 &&
+                selectedTypeRows.every((template, index) => {
+                    const count = staffingByTemplateId[template.id];
+                    const name =
+                        templateNamesById[template.id] ?? getDefaultTemplateName(template, index);
+                    return Number.isFinite(count) && count >= 1 && Boolean(name?.trim());
+                })
+            );
+        }
+
         return true;
     }, [
         currentStep,
@@ -312,14 +740,22 @@ export default function WizardPage() {
         data.peakTimeEnabled,
         data.peakStart,
         data.peakEnd,
+        data.templateType,
+        selectedTypeRows,
+        staffingByTemplateId,
+        templateNamesById,
     ]);
 
-    const goPrev = () => {
+    const goPrev = async () => {
         if (isSubmitting) {
             return;
         }
 
         if (isFirstStep) {
+            const canLeave = await confirmExitAndCleanup();
+            if (!canLeave) {
+                return;
+            }
             router.push("/dashboard");
             return;
         }
@@ -329,6 +765,93 @@ export default function WizardPage() {
 
     const goNext = async () => {
         if (isSubmitting) {
+            return;
+        }
+
+        if (currentStep === "peak") {
+            setIsSubmitting(true);
+            setSubmitError(null);
+
+            const createdStoreId = await ensureStoreCreated();
+            if (!createdStoreId) {
+                setIsSubmitting(false);
+                return;
+            }
+
+            const deleteTemplateResponse = await storeApi.deleteShiftTemplate(createdStoreId);
+            const deletedTemplate = parseApiResult<null>(deleteTemplateResponse);
+            if (!deletedTemplate.success) {
+                const code = deletedTemplate.error?.code ?? "";
+                if (code !== "TEMPLATE_NOT_FOUND" && code !== "404") {
+                    setSubmitError(
+                        deletedTemplate.error?.message ??
+                            "기존 템플릿 정리 중 오류가 발생했습니다."
+                    );
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            const templateCreateResponse = await storeApi.createShiftTemplate(createdStoreId, {
+                peak: data.peakTimeEnabled,
+                peakStartTime: data.peakTimeEnabled ? data.peakStart : undefined,
+                peakEndTime: data.peakTimeEnabled ? data.peakEnd : undefined,
+            });
+
+            const templateCreated = parseApiResult<null>(templateCreateResponse);
+            if (!templateCreated.success) {
+                const code = templateCreated.error?.code ?? "";
+                if (code === "INVALID_TIME_RANGE") {
+                    setSubmitError("피크 시작 시간은 종료 시간보다 빨라야 합니다.");
+                } else {
+                    setSubmitError(
+                        templateCreated.error?.message ?? "템플릿 생성 중 오류가 발생했습니다."
+                    );
+                }
+                setIsSubmitting(false);
+                return;
+            }
+
+            const loaded = await loadTemplateRows(createdStoreId);
+            if (!loaded) {
+                setIsSubmitting(false);
+                return;
+            }
+
+            setCurrentStep("logic");
+            setIsSubmitting(false);
+            return;
+        }
+
+        if (currentStep === "logic") {
+            setIsSubmitting(true);
+            setSubmitError(null);
+
+            const createdStoreId = await ensureStoreCreated();
+            if (!createdStoreId) {
+                setIsSubmitting(false);
+                return;
+            }
+
+            const typeUpdateResponse = await storeApi.updateTemplateType(createdStoreId, {
+                templateType: data.templateType,
+            });
+            const typeUpdated = parseApiResult<null>(typeUpdateResponse);
+
+            if (!typeUpdated.success) {
+                setSubmitError(typeUpdated.error?.message ?? "템플릿 타입 설정에 실패했습니다.");
+                setIsSubmitting(false);
+                return;
+            }
+
+            const loaded = await loadSelectedTypeRows(createdStoreId);
+            if (!loaded) {
+                setIsSubmitting(false);
+                return;
+            }
+
+            setCurrentStep("staffing");
+            setIsSubmitting(false);
             return;
         }
 
@@ -409,10 +932,21 @@ export default function WizardPage() {
                                 <WizardStep2PeakTime data={data} onChange={handlePatch} />
                             )}
                             {currentStep === "logic" && (
-                                <WizardStep3ShiftLogic data={data} onChange={handlePatch} />
+                                <WizardStep3ShiftLogic
+                                    data={data}
+                                    onChange={handlePatch}
+                                    templatesByType={templatesByType}
+                                />
                             )}
                             {currentStep === "staffing" && (
-                                <WizardStep4Staffing data={data} onChange={handlePatch} />
+                                <WizardStep4Staffing
+                                    templates={selectedTypeRows}
+                                    selectedTemplateType={data.templateType}
+                                    staffingByTemplateId={staffingByTemplateId}
+                                    onStaffingChange={handleStaffingChange}
+                                    templateNamesById={templateNamesById}
+                                    onTemplateNameChange={handleTemplateNameChange}
+                                />
                             )}
 
                             {submitError && (

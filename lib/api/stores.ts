@@ -202,11 +202,23 @@ export const storeApi = {
         return apiClient.post<unknown>(`/stores/${storeId}/shift-template`, data);
     },
 
+    async deleteShiftTemplate(storeId: string): Promise<ApiResponse<unknown>> {
+        return apiClient.delete<unknown>(`/stores/${storeId}/shift-template`);
+    },
+
     async updateTemplateType(
         storeId: string,
         data: { templateType: "COSTSAVER" | "HIGHSERVICE" }
     ): Promise<ApiResponse<unknown>> {
         return apiClient.put<unknown>(`/stores/${storeId}/shift-template`, data);
+    },
+
+    async updateTemplateStaff(
+        storeId: string,
+        templateId: number,
+        data: { requiredStaff: number; name?: string }
+    ): Promise<ApiResponse<unknown>> {
+        return apiClient.put<unknown>(`/stores/${storeId}/shift-template/${templateId}`, data);
     },
 
     async deleteOtherTemplateTypes(storeId: string): Promise<ApiResponse<unknown>> {
