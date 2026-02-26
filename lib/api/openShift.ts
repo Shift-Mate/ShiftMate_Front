@@ -49,4 +49,8 @@ export const openShiftApi = {
     apiClient.patch<void>(
       `/stores/${storeId}/open-shift/${openShiftId}/${applyId}/approve`,
     ),
+
+  // 나의 오픈시프트 지원 내역 조회
+  getMyApplications: (storeId: string) =>
+    apiClient.get(`/stores/${storeId}/open-shift/my-applies`),
 };
