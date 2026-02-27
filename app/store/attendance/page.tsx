@@ -238,6 +238,13 @@ function AttendancePageContent() {
 
         <main className="flex-1 overflow-hidden p-6">
           <div ref={fullscreenContainerRef} className="relative h-full w-full">
+            <div
+              className={`relative h-full grid grid-cols-1 lg:grid-cols-2 overflow-hidden ${
+                isFullscreen
+                  ? "w-full bg-background-light dark:bg-background-dark"
+                  : "max-w-7xl mx-auto rounded-xl border border-slate-200 dark:border-slate-700"
+              }`}
+            >
             <button
               type="button"
               onClick={handleToggleFullscreen}
@@ -249,13 +256,6 @@ function AttendancePageContent() {
               {isFullscreen ? "전체화면 종료" : "전체화면"}
             </button>
 
-            <div
-              className={`h-full grid grid-cols-1 lg:grid-cols-2 overflow-hidden ${
-                isFullscreen
-                  ? "w-full bg-background-light dark:bg-background-dark"
-                  : "max-w-7xl mx-auto rounded-xl border border-slate-200 dark:border-slate-700"
-              }`}
-            >
             {/* 왼쪽 섹션: 시계 및 근무자 선택 */}
             <section className="p-8 bg-gradient-to-br from-white to-primary/5 dark:from-[#15232b] dark:to-[#101c22] border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-700 flex flex-col justify-center">
               <div className="max-w-lg mx-auto w-full">
